@@ -11,7 +11,7 @@ No evidence, no claim.
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Typed](https://img.shields.io/badge/typing-mypy%20--strict-blue)](https://mypy.readthedocs.io/)
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-pytest%20%7C%2017%20passing-brightgreen?logo=pytest&logoColor=white)](backend/tests)
+[![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M1%2F10%29-orange)](#-roadmap)
 
