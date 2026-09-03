@@ -110,14 +110,18 @@ def normalise_frame(
     conversions: list[UnitConversion] = []
     passthrough: list[str] = []
     coerced: dict[str, int] = {}
+    claimed: dict[str, str] = {}  # canonical column -> source header that claimed it
 
     for col in list(frame.columns):
         canonical, unit = resolve_column(str(col), column_units.get(str(col)))
         if unit is None:
             passthrough.append(str(col))
             continue
-        if canonical in frame.columns and canonical != col:
-            raise IngestionError(f"columns {col!r} and {canonical!r} both map to {canonical!r}")
+        if canonical in claimed:
+            raise IngestionError(
+                f"columns {claimed[canonical]!r} and {col!r} both map to {canonical!r}"
+            )
+        claimed[canonical] = str(col)
 
         if canonical in NUMERIC_COLUMNS:
             before = frame[col].isna().sum()

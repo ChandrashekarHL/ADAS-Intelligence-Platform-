@@ -136,10 +136,21 @@ def test_unknown_columns_pass_through_and_garbage_is_counted() -> None:
     assert prov.nominal_dt_s == pytest.approx(0.1)
 
 
-def test_duplicate_mapping_and_unknown_unit_raise() -> None:
-    dup = pd.DataFrame({"ego_speed_kmh": [1.0], "ego_speed_mps": [1.0]})
-    with pytest.raises(IngestionError):
+@pytest.mark.parametrize(
+    "headers",
+    [
+        ("ego_speed_kmh", "ego_speed_mps"),  # alias + canonical
+        ("ego_speed", "ego_speed_kmh"),  # two aliases, neither is the canonical name
+        ("timestamp_s", "time_ms"),  # different base names for the same signal
+    ],
+)
+def test_duplicate_canonical_mapping_raises(headers: tuple[str, str]) -> None:
+    dup = pd.DataFrame({h: [1.0, 2.0] for h in headers})
+    with pytest.raises(IngestionError, match=f"{headers[0]!r} and {headers[1]!r} both map to"):
         ingest_frame(dup, source_path="memory")
+
+
+def test_unknown_unit_raises() -> None:
     weird = pd.DataFrame({"ego_speed": [1.0]})
     with pytest.raises(IngestionError):
         ingest_frame(weird, source_path="memory", column_units={"ego_speed": "furlongs/fortnight"})
