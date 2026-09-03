@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M2%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M3%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -70,8 +70,11 @@ flowchart LR
 2. **Gate.** Required signals, timestamp continuity, unit consistency and evidence
    sufficiency are checked. A failure blocks analysis or downgrades confidence. It is never
    silently ignored.
-3. **Measure.** Deterministic, pure functions compute AEB metrics: time-to-collision (TTC),
-   braking latency, minimum gap, maximum deceleration, collision.
+3. **Measure.** Events are detected on the logged signals, a T−5 s..T+5 s window is cut
+   around the brake command, and pure functions compute the AEB metrics inside it:
+   time-to-collision (TTC), braking latency, confidence dropout during the risk phase,
+   minimum gap, maximum deceleration, jerk, collision. Each value carries its own
+   evidence ID, timestamp, window and method. A metric that cannot be computed says why.
 4. **Diagnose.** An LLM agent receives only the evidence windows, metrics and retrieved
    requirement chunks. It must answer in a fixed JSON schema and may cite only the evidence
    IDs it was handed.
@@ -254,14 +257,20 @@ ADAS_intelgence_platform/
 │   │   │   ├── schemas.py       # TelemetryProvenance, UnitConversion, IngestedTelemetry
 │   │   │   ├── csv_loader.py    # column resolution, one-time unit conversion, sidecar
 │   │   │   └── cli.py           # python -m app.ingestion.cli <telemetry.csv>
-│   │   └── quality/         # M2: data-quality gates that run before any analysis
-│   │       ├── gates.py         # 7 pure gate functions + QualityPolicy thresholds
-│   │       └── report.py        # PASS / DEGRADED / BLOCKED verdict, require_analyzable()
+│   │   ├── quality/         # M2: data-quality gates that run before any analysis
+│   │   │   ├── gates.py         # 7 pure gate functions + QualityPolicy thresholds
+│   │   │   └── report.py        # PASS / DEGRADED / BLOCKED verdict, require_analyzable()
+│   │   └── metrics/         # M3: AEB metrics, every value an evidence artifact
+│   │       ├── schemas.py       # Event, EventWindow, MetricResult, AebThresholds
+│   │       ├── windows.py       # TTC series, event detection, T-5..T+5 windows
+│   │       ├── aeb.py           # 13 AEB metrics incl. braking latency + confidence dropout
+│   │       └── cli.py           # python -m app.metrics.cli <telemetry.csv>
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
 │   │   ├── test_ingestion.py
-│   │   └── test_quality.py
+│   │   ├── test_quality.py
+│   │   └── test_metrics.py
 │   └── pyproject.toml
 ├── data/demo/               # generated, gitignored
 ├── docs/
@@ -271,7 +280,7 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/metrics`, `app/llm`, `app/rag`, `app/agents`,
+Planned packages follow the same shape: `app/llm`, `app/rag`, `app/agents`,
 `app/verification`, `app/reports`, `app/api`.
 
 ### Tech stack
@@ -301,8 +310,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M0 | Project skeleton: config, IDs, units, errors, toolchain | ✅ done |
 | M1 | Synthetic AEB data generator with ground truth and fault injection | ✅ done |
 | M2 | CSV ingestion, one-time unit conversion, provenance, data-quality gates | ✅ done |
-| M3 | AEB metrics library: TTC, braking latency, collision, deceleration, jerk | 🔜 next |
-| M4 | LLM provider protocol: OpenAI provider + FakeProvider | ⬜ |
+| M3 | AEB metrics library with event windows and citable `metric_`/`window_`/`event_` IDs | ✅ done |
+| M4 | LLM provider protocol: OpenAI provider + FakeProvider | 🔜 next |
 | M5 | Requirement RAG: chunking, embeddings, hybrid retrieval, strict citations | ⬜ |
 | M6 | Diagnostic agent emitting the fixed JSON schema | ⬜ |
 | M7 | Evidence verifier and confidence rules | ⬜ |
@@ -327,9 +336,9 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 46 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 64 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
-  and known-bad frames.
+  and known-bad frames; every AEB metric checked against the generator's ground truth.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the

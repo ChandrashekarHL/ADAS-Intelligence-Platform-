@@ -1,0 +1,23 @@
+# CodeRabbit configuration. Docs: https://docs.coderabbit.ai/reference/configuration
+language: en-US
+reviews:
+  profile: assertive
+  high_level_summary: true
+  poem: false
+  path_filters:
+    - "!**/*.pdf"
+    - "!data/**"
+  path_instructions:
+    - path: "backend/tests/**"
+      instructions: >
+        These are pytest tests. Descriptive test names replace docstrings; do not
+        request docstrings on test functions or fixtures. Focus on missing edge cases
+        and assertions that could pass vacuously.
+    - path: "backend/app/**"
+      instructions: >
+        Evidence-first ADAS diagnostics. Flag any place a value is invented, a
+        data-quality problem is silently swallowed, units are converted more than once,
+        or an LLM is called outside app/llm/.
+  tools:
+    ruff:
+      enabled: true
