@@ -5,6 +5,7 @@ environment. They are never logged, serialized into reports, or committed.
 """
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,9 +13,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    # LLM access. "fake" runs the whole pipeline offline with scripted responses.
+    llm_provider: Literal["openai", "fake"] = "openai"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+    llm_timeout_s: float = 60.0
+    llm_max_attempts: int = 3
 
     # SQLite for MVP; swap to a PostgreSQL URL in production without code changes
     # (see docs/postgres-migration.md).

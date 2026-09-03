@@ -21,5 +21,9 @@ class ProviderError(AipError):
     """Raised when an LLM/embedding provider call fails after retries."""
 
 
+class StructuredOutputError(ProviderError):
+    """Raised when model output cannot be parsed/validated against the requested schema."""
+
+
 class IngestionError(AipError):
     """Raised when a telemetry file cannot be read or its columns cannot be resolved."""
