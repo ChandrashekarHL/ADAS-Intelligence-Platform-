@@ -26,6 +26,7 @@ htmlcov/
 
 # Generated data, reports, model artifacts
 data/demo/
+data/index/
 runs/
 reports_out/
 *.parquet
