@@ -8,7 +8,7 @@ report. Prefixes are fixed here so the whole codebase shares one vocabulary.
 import uuid
 
 PREFIXES = frozenset(
-    {"window", "metric", "chunk", "event", "report", "run", "doc", "file", "scenario"}
+    {"window", "metric", "chunk", "event", "report", "run", "doc", "file", "scenario", "quality"}
 )
 
 

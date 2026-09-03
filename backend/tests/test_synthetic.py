@@ -7,6 +7,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from app.core.signals import (
+    COL_AEB_STATE,
+    COL_BRAKE_CMD,
+    COL_EGO_SPEED,
+    COL_OBJECT_CONF,
+    COL_REL_DISTANCE,
+    COL_TIMESTAMP,
+    FRAME_COLUMNS,
+)
 from app.core.units import KMH_TO_MPS
 from app.synthetic.aeb_generator import (
     GENERATOR_VERSION,
@@ -23,14 +32,7 @@ from app.synthetic.io import (
     write_scenario,
 )
 from app.synthetic.schemas import (
-    COL_AEB_STATE,
-    COL_BRAKE_CMD,
-    COL_EGO_SPEED,
-    COL_OBJECT_CONF,
-    COL_REL_DISTANCE,
-    COL_TIMESTAMP,
     DATA_ORIGIN_SYNTHETIC,
-    FRAME_COLUMNS,
     AebScenarioConfig,
     AebState,
     FaultInjection,
