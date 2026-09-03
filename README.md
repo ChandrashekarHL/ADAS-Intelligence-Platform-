@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M3%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M4%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -152,9 +152,10 @@ Run the quality checks:
 .venv\Scripts\python.exe -m mypy            # strict type check
 ```
 
-Optional configuration lives in `.env` (copy from `.env.example`). An OpenAI key is only
-needed once the LLM milestones land; every LLM-dependent test runs against a fake provider
-and live-API tests are skipped without a key.
+Optional configuration lives in `.env` (copy from `.env.example`). Set `LLM_PROVIDER=fake`
+to run everything offline. With `LLM_PROVIDER=openai` (the default) an `OPENAI_API_KEY` is
+required; every LLM-dependent test runs against the fake provider and the single live-API
+test is skipped when the key is unset.
 
 ---
 
@@ -260,17 +261,25 @@ ADAS_intelgence_platform/
 │   │   ├── quality/         # M2: data-quality gates that run before any analysis
 │   │   │   ├── gates.py         # 7 pure gate functions + QualityPolicy thresholds
 │   │   │   └── report.py        # PASS / DEGRADED / BLOCKED verdict, require_analyzable()
-│   │   └── metrics/         # M3: AEB metrics, every value an evidence artifact
-│   │       ├── schemas.py       # Event, EventWindow, MetricResult, AebThresholds
-│   │       ├── windows.py       # TTC series, event detection, T-5..T+5 windows
-│   │       ├── aeb.py           # 13 AEB metrics incl. braking latency + confidence dropout
-│   │       └── cli.py           # python -m app.metrics.cli <telemetry.csv>
+│   │   ├── metrics/         # M3: AEB metrics, every value an evidence artifact
+│   │   │   ├── schemas.py       # Event, EventWindow, MetricResult, AebThresholds
+│   │   │   ├── windows.py       # TTC series, event detection, T-5..T+5 windows
+│   │   │   ├── aeb.py           # 13 AEB metrics incl. braking latency + confidence dropout
+│   │   │   └── cli.py           # python -m app.metrics.cli <telemetry.csv>
+│   │   └── llm/             # M4: the only place that talks to an LLM API
+│   │       ├── schemas.py       # LLMRequest/Response, EmbeddingResponse, CallRecord
+│   │       ├── provider.py      # LLMProvider protocol, retries, structured parsing, CallLog
+│   │       ├── openai_provider.py  # OpenAI SDK (chat.completions.parse for JSON schemas)
+│   │       ├── fake.py          # deterministic offline provider for tests and demos
+│   │       └── factory.py       # build_provider(settings)
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
 │   │   ├── test_ingestion.py
 │   │   ├── test_quality.py
-│   │   └── test_metrics.py
+│   │   ├── test_metrics.py
+│   │   ├── test_llm.py
+│   │   └── test_llm_live.py     # skipped without OPENAI_API_KEY
 │   └── pyproject.toml
 ├── data/demo/               # generated, gitignored
 ├── docs/
@@ -280,8 +289,8 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/llm`, `app/rag`, `app/agents`,
-`app/verification`, `app/reports`, `app/api`.
+Planned packages follow the same shape: `app/rag`, `app/agents`, `app/verification`,
+`app/reports`, `app/api`.
 
 ### Tech stack
 
@@ -311,8 +320,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M1 | Synthetic AEB data generator with ground truth and fault injection | ✅ done |
 | M2 | CSV ingestion, one-time unit conversion, provenance, data-quality gates | ✅ done |
 | M3 | AEB metrics library with event windows and citable `metric_`/`window_`/`event_` IDs | ✅ done |
-| M4 | LLM provider protocol: OpenAI provider + FakeProvider | 🔜 next |
-| M5 | Requirement RAG: chunking, embeddings, hybrid retrieval, strict citations | ⬜ |
+| M4 | LLM provider protocol: OpenAI provider, deterministic FakeProvider, retries, call log | ✅ done |
+| M5 | Requirement RAG: chunking, embeddings, hybrid retrieval, strict citations | 🔜 next |
 | M6 | Diagnostic agent emitting the fixed JSON schema | ⬜ |
 | M7 | Evidence verifier and confidence rules | ⬜ |
 | M8 | Traceable report generator with limitations and disclaimer | ⬜ |
@@ -336,9 +345,10 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 64 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 81 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
-  and known-bad frames; every AEB metric checked against the generator's ground truth.
+  and known-bad frames; every AEB metric checked against the generator's ground truth; the
+  LLM layer's retries, structured parsing and error paths against a mocked SDK client.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the
