@@ -13,19 +13,14 @@ from typing import Literal
 import pandas as pd
 
 from app.core.ids import new_id
+from app.core.signals import (
+    CANONICAL_UNITS,
+    COL_EGO_SPEED,
+    COL_REL_VELOCITY,
+)
 from app.core.units import MPS_TO_KMH
 from app.synthetic.aeb_generator import GENERATOR_VERSION, SyntheticScenario
 from app.synthetic.schemas import (
-    COL_AEB_STATE,
-    COL_BRAKE_CMD,
-    COL_EGO_ACCEL,
-    COL_EGO_SPEED,
-    COL_OBJECT_CLASS,
-    COL_OBJECT_CONF,
-    COL_REL_DISTANCE,
-    COL_REL_VELOCITY,
-    COL_TIMESTAMP,
-    COL_WEATHER,
     ScenarioMetadata,
     ScenarioVariant,
 )
@@ -39,22 +34,9 @@ METADATA_NAME = "scenario.json"
 CSV_EGO_SPEED_KMH = "ego_speed_kmh"
 CSV_REL_VELOCITY_KMH = "relative_velocity_kmh"
 
-_SI_UNITS: dict[str, str] = {
-    COL_TIMESTAMP: "s",
-    COL_EGO_SPEED: "m/s",
-    COL_EGO_ACCEL: "m/s^2",
-    COL_REL_DISTANCE: "m",
-    COL_REL_VELOCITY: "m/s",
-    COL_OBJECT_CLASS: "category",
-    COL_OBJECT_CONF: "ratio",
-    COL_BRAKE_CMD: "bool",
-    COL_AEB_STATE: "enum",
-    COL_WEATHER: "category",
-}
 
 SYNTHETIC_NOTES: tuple[str, ...] = (
-    "Synthetic 1-D kinematic simulation. Not real-world data; not evidence of on-road "
-    "behaviour.",
+    "Synthetic 1-D kinematic simulation. Not real-world data; not evidence of on-road behaviour.",
     "Signals carry seeded Gaussian measurement noise; ground_truth is noise-free.",
     "Any faults listed under config.faults were injected deliberately for data-quality "
     "gate testing.",
@@ -77,7 +59,7 @@ def to_export_frame(scenario: SyntheticScenario, speed_unit: SpeedUnit) -> pd.Da
 
 
 def column_units_for(frame: pd.DataFrame, speed_unit: SpeedUnit) -> dict[str, str]:
-    units = dict(_SI_UNITS)
+    units = dict(CANONICAL_UNITS)
     if speed_unit == "kmh":
         units[CSV_EGO_SPEED_KMH] = "km/h"
         units[CSV_REL_VELOCITY_KMH] = "km/h"

@@ -19,3 +19,7 @@ class EvidenceResolutionError(AipError):
 
 class ProviderError(AipError):
     """Raised when an LLM/embedding provider call fails after retries."""
+
+
+class IngestionError(AipError):
+    """Raised when a telemetry file cannot be read or its columns cannot be resolved."""

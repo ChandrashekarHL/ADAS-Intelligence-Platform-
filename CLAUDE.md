@@ -23,6 +23,7 @@ All from `backend/` (venv exists at `backend/.venv`; on Windows call its python 
 .venv\Scripts\python.exe -m ruff check .              # lint
 .venv\Scripts\python.exe -m mypy                      # strict type check
 .venv\Scripts\python.exe -m app.synthetic.cli --all --seed 42 --out ../data/demo  # demo AEB CSVs
+.venv\Scripts\python.exe -m app.ingestion.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv  # ingest + quality gates
 ```
 
 Add commands here only after they have actually been run successfully.

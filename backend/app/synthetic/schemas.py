@@ -12,32 +12,9 @@ from enum import IntEnum, StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.signals import COL_TIMESTAMP, FRAME_COLUMNS
+
 DATA_ORIGIN_SYNTHETIC = "synthetic"
-
-# Canonical in-memory column names (SI). Ingestion (M2) maps external CSV headers to these.
-COL_TIMESTAMP = "timestamp_s"
-COL_EGO_SPEED = "ego_speed_mps"
-COL_EGO_ACCEL = "ego_acceleration_mps2"
-COL_REL_DISTANCE = "relative_distance_m"
-COL_REL_VELOCITY = "relative_velocity_mps"
-COL_OBJECT_CLASS = "object_class"
-COL_OBJECT_CONF = "object_confidence"
-COL_BRAKE_CMD = "brake_command"
-COL_AEB_STATE = "aeb_state"
-COL_WEATHER = "weather"
-
-FRAME_COLUMNS: tuple[str, ...] = (
-    COL_TIMESTAMP,
-    COL_EGO_SPEED,
-    COL_EGO_ACCEL,
-    COL_REL_DISTANCE,
-    COL_REL_VELOCITY,
-    COL_OBJECT_CLASS,
-    COL_OBJECT_CONF,
-    COL_BRAKE_CMD,
-    COL_AEB_STATE,
-    COL_WEATHER,
-)
 
 
 class ScenarioVariant(StrEnum):

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from app.synthetic.schemas import (
+from app.core.signals import (
     COL_AEB_STATE,
     COL_BRAKE_CMD,
     COL_EGO_ACCEL,
@@ -36,6 +36,8 @@ from app.synthetic.schemas import (
     COL_TIMESTAMP,
     COL_WEATHER,
     FRAME_COLUMNS,
+)
+from app.synthetic.schemas import (
     AebScenarioConfig,
     AebState,
     FaultInjection,

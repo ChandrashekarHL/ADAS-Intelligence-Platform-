@@ -13,3 +13,4 @@ records the conversion; nothing downstream re-converts.
 
 KMH_TO_MPS: float = 1.0 / 3.6
 MPS_TO_KMH: float = 3.6
+MS_TO_S: float = 1e-3

@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M1%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M2%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -239,19 +239,29 @@ scenario = generate_aeb_scenario(cfg)   # scenario.frame, scenario.ground_truth
 ADAS_intelgence_platform/
 ├── backend/
 │   ├── app/
-│   │   ├── core/            # config, domain errors, evidence IDs, unit constants
+│   │   ├── core/            # config, domain errors, evidence IDs, units, signal vocabulary
 │   │   │   ├── config.py
 │   │   │   ├── errors.py
 │   │   │   ├── ids.py
+│   │   │   ├── signals.py       # canonical column names, critical vs optional AEB signals
 │   │   │   └── units.py
-│   │   └── synthetic/       # M1: deterministic AEB scenario generator
-│   │       ├── schemas.py       # AebScenarioConfig, FaultInjection, ScenarioGroundTruth
-│   │       ├── aeb_generator.py # 1-D kinematics + jerk-limited AEB controller
-│   │       ├── io.py            # CSV + scenario.json export, unit-aware
-│   │       └── cli.py           # python -m app.synthetic.cli
+│   │   ├── synthetic/       # M1: deterministic AEB scenario generator
+│   │   │   ├── schemas.py       # AebScenarioConfig, FaultInjection, ScenarioGroundTruth
+│   │   │   ├── aeb_generator.py # 1-D kinematics + jerk-limited AEB controller
+│   │   │   ├── io.py            # CSV + scenario.json export, unit-aware
+│   │   │   └── cli.py           # python -m app.synthetic.cli
+│   │   ├── ingestion/       # M2: CSV → canonical SI frame with provenance
+│   │   │   ├── schemas.py       # TelemetryProvenance, UnitConversion, IngestedTelemetry
+│   │   │   ├── csv_loader.py    # column resolution, one-time unit conversion, sidecar
+│   │   │   └── cli.py           # python -m app.ingestion.cli <telemetry.csv>
+│   │   └── quality/         # M2: data-quality gates that run before any analysis
+│   │       ├── gates.py         # 7 pure gate functions + QualityPolicy thresholds
+│   │       └── report.py        # PASS / DEGRADED / BLOCKED verdict, require_analyzable()
 │   ├── tests/
 │   │   ├── test_skeleton.py
-│   │   └── test_synthetic.py
+│   │   ├── test_synthetic.py
+│   │   ├── test_ingestion.py
+│   │   └── test_quality.py
 │   └── pyproject.toml
 ├── data/demo/               # generated, gitignored
 ├── docs/
@@ -261,8 +271,8 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/ingestion`, `app/quality`, `app/metrics`,
-`app/llm`, `app/rag`, `app/agents`, `app/verification`, `app/reports`, `app/api`.
+Planned packages follow the same shape: `app/metrics`, `app/llm`, `app/rag`, `app/agents`,
+`app/verification`, `app/reports`, `app/api`.
 
 ### Tech stack
 
@@ -290,8 +300,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 |---|---|---|
 | M0 | Project skeleton: config, IDs, units, errors, toolchain | ✅ done |
 | M1 | Synthetic AEB data generator with ground truth and fault injection | ✅ done |
-| M2 | CSV ingestion, timestamp alignment, data-quality gates | 🔜 next |
-| M3 | AEB metrics library: TTC, braking latency, collision, deceleration, jerk | ⬜ |
+| M2 | CSV ingestion, one-time unit conversion, provenance, data-quality gates | ✅ done |
+| M3 | AEB metrics library: TTC, braking latency, collision, deceleration, jerk | 🔜 next |
 | M4 | LLM provider protocol: OpenAI provider + FakeProvider | ⬜ |
 | M5 | Requirement RAG: chunking, embeddings, hybrid retrieval, strict citations | ⬜ |
 | M6 | Diagnostic agent emitting the fixed JSON schema | ⬜ |
@@ -317,8 +327,9 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** The generator alone has 17 covering determinism,
-  physics sanity, the variant contrast, fault injection, unit round-trips and the CLI.
+- **Every module ships with tests.** 46 so far: the generator's determinism, physics and
+  fault injection; ingestion's unit conversion and provenance; every quality gate on clean
+  and known-bad frames.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the
