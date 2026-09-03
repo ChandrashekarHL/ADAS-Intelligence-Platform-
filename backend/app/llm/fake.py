@@ -2,12 +2,15 @@
 
 * Completions come from a queue of scripted responses (strings or Pydantic objects) or
   from a callable that inspects the request.
-* Embeddings are a pure function of the text (seeded from its SHA-256), unit-normalised,
-  so retrieval tests are reproducible without a network.
+* Embeddings are a deterministic hashed bag-of-words (each token hashed into one of
+  ``embedding_dim`` buckets with a hashed sign), unit-normalised. Texts sharing words are
+  close, unrelated texts are not, and no network is involved, so offline retrieval demos
+  rank sensibly and tests are reproducible.
 * ``fail_times`` makes the first N calls raise a transient error to exercise retries.
 """
 
 import hashlib
+import re
 import time
 from collections.abc import Callable, Sequence
 from typing import TypeVar
@@ -26,6 +29,7 @@ from app.llm.schemas import (
 )
 
 T = TypeVar("T", bound=BaseModel)
+_TOKEN = re.compile(r"[a-z0-9][a-z0-9_]*")
 
 
 class FakeTransientError(Exception):
@@ -142,7 +146,15 @@ class FakeProvider:
         )
 
     def _vector(self, text: str) -> tuple[float, ...]:
-        seed = int.from_bytes(hashlib.sha256(text.encode("utf-8")).digest()[:8], "big")
-        v = np.random.default_rng(seed).normal(size=self._dim)
-        v /= np.linalg.norm(v)
-        return tuple(float(x) for x in v)
+        v = np.zeros(self._dim, dtype="float64")
+        for token in _TOKEN.findall(text.lower()):
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            bucket = int.from_bytes(digest[:4], "big") % self._dim
+            sign = 1.0 if digest[4] & 1 else -1.0
+            v[bucket] += sign
+        norm = float(np.linalg.norm(v))
+        if norm == 0.0:  # no tokens: fall back to a seeded random direction
+            seed = int.from_bytes(hashlib.sha256(text.encode("utf-8")).digest()[:8], "big")
+            v = np.random.default_rng(seed).normal(size=self._dim)
+            norm = float(np.linalg.norm(v))
+        return tuple(float(x) for x in v / norm)

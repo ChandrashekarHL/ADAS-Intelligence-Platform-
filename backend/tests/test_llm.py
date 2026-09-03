@@ -120,6 +120,15 @@ def test_fake_embeddings_are_deterministic_and_normalised() -> None:
     assert a.vectors[0] == b.vectors[0]  # same text, same vector, across instances
     assert a.vectors[0] != a.vectors[1]
     assert np.linalg.norm(a.vectors[0]) == pytest.approx(1.0)
+    # hashed bag-of-words: shared vocabulary → higher cosine than unrelated text
+    va, vb, vc = (
+        np.array(x)
+        for x in FakeProvider(embedding_dim=16)
+        .embed(["brake command latency", "brake latency threshold", "weather category tag"])
+        .vectors
+    )
+    assert float(va @ vb) > float(va @ vc)
+    assert FakeProvider(embedding_dim=8).embed([""]).dimension == 8  # empty text still works
     assert fake.embedded == [("braking latency", "time to collision")]
     assert fake.call_log.records[0].kind == "embedding"
     assert fake.call_log.records[0].purpose == "rag"

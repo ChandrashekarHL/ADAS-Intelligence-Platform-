@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M4%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M5%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -144,6 +144,14 @@ scenario_5fb80c025795  late_braking  -> ..\data\demo\aeb_late_braking_seed42
   braking_latency_s=0.8   min_ttc_s=0.006
 ```
 
+Build the requirement index from the synthetic AEB documents and query it, fully offline:
+
+```bash
+# PowerShell: $env:LLM_PROVIDER="fake"   |   bash: export LLM_PROVIDER=fake
+.venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index
+.venv\Scripts\python.exe -m app.rag.cli query ../data/index "brake command latency" --access internal
+```
+
 Run the quality checks:
 
 ```bash
@@ -266,12 +274,18 @@ ADAS_intelgence_platform/
 │   │   │   ├── windows.py       # TTC series, event detection, T-5..T+5 windows
 │   │   │   ├── aeb.py           # 13 AEB metrics incl. braking latency + confidence dropout
 │   │   │   └── cli.py           # python -m app.metrics.cli <telemetry.csv>
-│   │   └── llm/             # M4: the only place that talks to an LLM API
-│   │       ├── schemas.py       # LLMRequest/Response, EmbeddingResponse, CallRecord
-│   │       ├── provider.py      # LLMProvider protocol, retries, structured parsing, CallLog
-│   │       ├── openai_provider.py  # OpenAI SDK (chat.completions.parse for JSON schemas)
-│   │       ├── fake.py          # deterministic offline provider for tests and demos
-│   │       └── factory.py       # build_provider(settings)
+│   │   ├── llm/             # M4: the only place that talks to an LLM API
+│   │   │   ├── schemas.py       # LLMRequest/Response, EmbeddingResponse, CallRecord
+│   │   │   ├── provider.py      # LLMProvider protocol, retries, structured parsing, CallLog
+│   │   │   ├── openai_provider.py  # OpenAI SDK (chat.completions.parse for JSON schemas)
+│   │   │   ├── fake.py          # deterministic offline provider (hashed bag-of-words embeddings)
+│   │   │   └── factory.py       # build_provider(settings)
+│   │   └── rag/             # M5: requirement documents → citable chunks
+│   │       ├── schemas.py       # DocumentMeta, Chunk (§12.3 metadata), RetrievalResult
+│   │       ├── chunking.py      # front matter + heading sections → chunks, REQ/TC/INC IDs
+│   │       ├── index.py         # embeddings (.npy) + BM25 + manifest, save/load
+│   │       ├── retrieval.py     # hybrid cosine+BM25, access wall, trust/freshness rerank
+│   │       └── cli.py           # python -m app.rag.cli build|query
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
@@ -279,9 +293,13 @@ ADAS_intelgence_platform/
 │   │   ├── test_quality.py
 │   │   ├── test_metrics.py
 │   │   ├── test_llm.py
-│   │   └── test_llm_live.py     # skipped without OPENAI_API_KEY
+│   │   ├── test_llm_live.py     # skipped without OPENAI_API_KEY
+│   │   └── test_rag.py
 │   └── pyproject.toml
-├── data/demo/               # generated, gitignored
+├── data/
+│   ├── demo/                # generated telemetry, gitignored
+│   ├── demo_docs/           # synthetic AEB requirement / signal / test / issue docs (tracked)
+│   └── index/               # built RAG index, gitignored
 ├── docs/
 │   ├── specification-digest.md   # condensed product specification
 │   └── postgres-migration.md     # how SQLite → PostgreSQL happens later
@@ -289,8 +307,8 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/rag`, `app/agents`, `app/verification`,
-`app/reports`, `app/api`.
+Planned packages follow the same shape: `app/agents`, `app/verification`, `app/reports`,
+`app/api`.
 
 ### Tech stack
 
@@ -321,8 +339,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M2 | CSV ingestion, one-time unit conversion, provenance, data-quality gates | ✅ done |
 | M3 | AEB metrics library with event windows and citable `metric_`/`window_`/`event_` IDs | ✅ done |
 | M4 | LLM provider protocol: OpenAI provider, deterministic FakeProvider, retries, call log | ✅ done |
-| M5 | Requirement RAG: chunking, embeddings, hybrid retrieval, strict citations | 🔜 next |
-| M6 | Diagnostic agent emitting the fixed JSON schema | ⬜ |
+| M5 | Requirement RAG: heading-level chunks with §12.3 metadata, hybrid retrieval, access wall, stable `chunk_` IDs | ✅ done |
+| M6 | Diagnostic agent emitting the fixed JSON schema | 🔜 next |
 | M7 | Evidence verifier and confidence rules | ⬜ |
 | M8 | Traceable report generator with limitations and disclaimer | ⬜ |
 | M9 | FastAPI endpoints, demo CLI, end-to-end acceptance test | ⬜ |
@@ -345,10 +363,11 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 81 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 100 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
   and known-bad frames; every AEB metric checked against the generator's ground truth; the
-  LLM layer's retries, structured parsing and error paths against a mocked SDK client.
+  LLM layer's retries, structured parsing and error paths against a mocked SDK client; RAG
+  chunking, stable IDs, index round-trips and the access wall.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the
