@@ -1,0 +1,45 @@
+# Environments / secrets — never track
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Databases (SQLite is runtime state, not source)
+*.sqlite
+*.sqlite3
+*.db
+
+# Generated data, reports, model artifacts
+data/demo/
+runs/
+reports_out/
+*.parquet
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
+# Node (future frontend)
+node_modules/
+.next/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
