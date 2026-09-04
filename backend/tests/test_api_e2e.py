@@ -328,3 +328,71 @@ def test_report_json_matches_disk(client: TestClient, scenario_dirs: dict[str, P
         json.loads(ws_files[0].read_text(encoding="utf-8"))["metadata"]["report_id"]
         == body["metadata"]["report_id"]
     )
+
+
+def test_dashboard_listing_endpoints_and_cors(
+    client: TestClient, scenario_dirs: dict[str, Path]
+) -> None:
+    project_id = client.post("/api/projects", json={"name": "listings"}).json()["id"]
+    assert any(p["id"] == project_id for p in client.get("/api/projects").json())
+    f = upload(client, project_id, scenario_dirs["late_braking"])
+    files = client.get(f"/api/projects/{project_id}/files").json()
+    assert [x["id"] for x in files] == [f["id"]]
+    assert client.get("/api/projects/proj_nope/files").status_code == 404
+
+    # metrics are only stored after an ingestion job
+    assert client.get(f"/api/files/{f['id']}/metrics").json() == []
+    client.post("/api/ingestion/jobs", json={"file_id": f["id"]})
+    metrics = client.get(f"/api/files/{f['id']}/metrics").json()
+    names = {m["name"] for m in metrics}
+    assert "braking_latency_s" in names and all(m["id"].startswith("metric_") for m in metrics)
+    latency = next(m for m in metrics if m["name"] == "braking_latency_s")
+    assert latency["passed"] is False and latency["value"] == pytest.approx(0.8, abs=0.05)
+
+    sig = client.get(f"/api/files/{f['id']}/signals", params={"max_points": 100}).json()
+    assert sig["rows_total"] == 500 and sig["step"] == 5
+    assert "timestamp_s" in sig["columns"] and "object_confidence" in sig["columns"]
+    assert "object_class" not in sig["columns"]  # strings are not plotted
+    assert len(sig["data"]["timestamp_s"]) == 100
+    assert sig["data"]["timestamp_s"][1] == pytest.approx(0.1)
+
+    q = client.post(
+        "/api/query",
+        json={"project_id": project_id, "file_id": f["id"], "access_level": "internal"},
+    ).json()
+    runs = client.get("/api/runs", params={"file_id": f["id"]}).json()
+    assert [r["id"] for r in runs] == [q["run_id"]]
+    detail = client.get(f"/api/runs/{q['run_id']}").json()
+    assert detail["run"]["run_id"] == q["run_id"]
+    assert detail["verification"]["verification_id"] == q["verification_id"]
+    assert client.get("/api/runs/run_nope").status_code == 404
+
+    chunk_ids = [i for i in q["evidence_ids"] if i.startswith("chunk_")]
+    assert chunk_ids
+    assert client.get(f"/api/chunks/{chunk_ids[0]}").status_code == 403  # default access: public
+    chunk = client.get(f"/api/chunks/{chunk_ids[0]}", params={"access": "internal"}).json()
+    assert chunk["chunk_id"] == chunk_ids[0] and chunk["source_type"] == "requirement"
+    assert "REQ-AEB" in " ".join(chunk["requirement_ids"]) and chunk["text"]
+    assert client.get("/api/chunks/chunk_nope", params={"access": "internal"}).status_code == 404
+
+    rep = client.post(
+        "/api/reports",
+        json={
+            "project_id": project_id,
+            "file_id": f["id"],
+            "run_id": q["run_id"],
+            "access_level": "internal",
+        },
+    ).json()
+    listed = client.get("/api/reports", params={"project_id": project_id}).json()
+    assert [r["report_id"] for r in listed] == [rep["report_id"]]
+    assert listed[0]["approval_id"] == rep["approval_id"]
+    assert listed[0]["approval_status"] == "pending_review"
+    pending = client.get("/api/approvals", params={"status": "pending_review"}).json()
+    assert any(a["id"] == rep["approval_id"] for a in pending)
+
+    r = client.options(
+        "/api/projects",
+        headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"},
+    )
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"

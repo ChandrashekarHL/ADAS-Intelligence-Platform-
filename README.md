@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-backend%20MVP%20complete%20%28M9%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20complete%20%28M10%2F10%29-brightgreen)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -178,11 +178,17 @@ Or run the whole thing through the HTTP API in one go, in-process, no server nee
 .venv\Scripts\python.exe -m app.demo --out ../data/demo_run
 ```
 
-To serve the API (interactive docs at http://127.0.0.1:8000/docs):
+To serve the API (interactive docs at http://127.0.0.1:8000/docs) and the dashboard:
 
 ```bash
-.venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000
+.venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000     # from backend/
+cd ../frontend && npm install && npm run dev                          # http://localhost:3000
 ```
+
+The dashboard has three screens: **Project overview** (upload, gates, files, reports),
+**Incident explorer** (signal plots with event markers, metrics, the verified AI diagnosis
+with clickable evidence IDs that resolve to metrics, events or requirement text) and
+**Report and approval** (rendered report, reviewer sign-off recorded into the report).
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -353,6 +359,12 @@ ADAS_intelgence_platform/
 │   │   │   ├── schemas.py       # request/response models incl. the §18.2 query contract
 │   │   │   └── main.py          # uvicorn entry point
 │   │   └── demo.py          # end-to-end demo through the API, in-process, no key needed
+│   └── tests/ …
+├── frontend/                # M10: Next.js 16 dashboard over the API (see frontend/README.md)
+│   └── src/
+│       ├── app/             # / overview · /incidents/[fileId] · /reports/[reportId]
+│       ├── components/      # ProjectOverview, IncidentExplorer, SignalCharts, ReportView, ui
+│       └── lib/api.ts       # typed client mirroring backend/app/api/schemas.py
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
@@ -378,7 +390,8 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Every backend package of the MVP is in place; M10 adds the Next.js dashboard on top of the API.
+Every package of the MVP is in place. The dashboard consumes only the API; the browser
+computes nothing.
 
 ### Tech stack
 
@@ -390,7 +403,7 @@ Every backend package of the MVP is in place; M10 adds the Next.js dashboard on 
 | Persistence | SQLite via SQLAlchemy 2 | Zero-ops for the MVP; PostgreSQL path documented |
 | LLM | OpenAI API behind a provider protocol | Swappable; fake provider for tests |
 | API | FastAPI | Typed, injectable, tested in-process |
-| Dashboard | Next.js (planned, M10) | Only after the CLI slice passes acceptance |
+| Dashboard | Next.js 16, TypeScript, Tailwind v4, Recharts | Thin client over the API; three screens done well |
 
 Deliberately **not** in the MVP: Docker, Kubernetes, CARLA, ROS 2, GPUs, PostgreSQL,
 TimescaleDB, Redis, vector databases, queues, observability stacks. Each is adopted only
@@ -414,7 +427,7 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M7 | Evidence verifier: ID resolution, stripping, §28.1 confidence rules, human-review triggers | ✅ done |
 | M8 | Report generator: §27.3 template from verified results only, Markdown + JSON, traceability guard | ✅ done |
 | M9 | FastAPI (§18 endpoints), SQLite persistence, approvals, in-process demo, end-to-end acceptance test | ✅ done |
-| M10 | Next.js dashboard: incident explorer, evidence panel, agent trace viewer | 🔜 next |
+| M10 | Next.js dashboard: project overview, incident explorer with evidence panel, report + approval view | ✅ done |
 
 **Definition of done for every milestone:** `pytest`, `ruff check .` and `mypy --strict`
 all pass, every module lands with tests, and the end-to-end demo test (once it exists)

@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     index_dir: Path = Path("../data/index")
     # Uploaded files and generated reports are stored under here, per project.
     workspace_dir: Path = Path("../data/workspace")
+    # Browser origins allowed to call the API (comma-separated). The Next.js dev server.
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
 
 def get_settings() -> Settings:

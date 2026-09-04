@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* Light palette (default) */
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --fg: #16181d;
+  --muted: #5f6673;
+  --line: #d9dde3;
+  --accent: #1f5fbf;
+  --ok: #1a7f4b;
+  --warn: #b26a00;
+  --bad: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --panel: #161a21;
+    --fg: #e6e8ec;
+    --muted: #9aa3b2;
+    --line: #2a303a;
+    --accent: #4f8ff0;
+    --ok: #3ccf7a;
+    --warn: #f0b04a;
+    --bad: #f0665c;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Rendered report markdown */
+.report-md h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.75rem; }
+.report-md h2 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+.report-md h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.25rem; }
+.report-md p, .report-md li { font-size: 0.9rem; line-height: 1.5; }
+.report-md ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0 0.75rem; }
+.report-md blockquote { border-left: 3px solid var(--warn); padding: 0.25rem 0.75rem; color: var(--muted); margin: 0.5rem 0; }
+.report-md code { font-family: var(--font-geist-mono), monospace; font-size: 0.75rem; background: color-mix(in srgb, var(--line) 40%, transparent); padding: 0.05rem 0.3rem; border-radius: 0.25rem; }
+.report-md table { border-collapse: collapse; width: 100%; font-size: 0.8rem; margin: 0.5rem 0 1rem; display: block; overflow-x: auto; }
+.report-md th, .report-md td { border: 1px solid var(--line); padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
+.report-md th { background: color-mix(in srgb, var(--line) 30%, transparent); font-weight: 600; }

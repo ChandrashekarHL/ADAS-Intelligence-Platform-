@@ -135,3 +135,73 @@ class DashboardOut(BaseModel):
     llm_completion_tokens: int
     llm_provider: str
     rag_index_loaded: bool
+
+
+class MetricOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    file_id: str
+    name: str
+    value: float | None
+    unit: str
+    passed: bool | None
+    t_s: float | None
+    window_id: str | None
+
+
+class SignalsOut(BaseModel):
+    """Downsampled telemetry for plotting. Never the source of truth for metrics."""
+
+    file_id: str
+    rows_total: int
+    step: int
+    columns: list[str]
+    data: dict[str, list[float | None]]
+
+
+class RunSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str
+    file_id: str
+    agent: str
+    provider: str
+    model: str
+    question: str
+    verification_id: str
+    report_confidence: str
+    human_review_required: bool
+    evidence_support_rate: float
+    prompt_tokens: int
+    completion_tokens: int
+    latency_s: float
+    created_at: datetime
+
+
+class RunDetailOut(RunSummaryOut):
+    run: dict[str, object]
+    verification: dict[str, object]
+
+
+class ChunkOut(BaseModel):
+    chunk_id: str
+    document_title: str
+    heading: str
+    text: str
+    source_type: str
+    access_level: str
+    version: str | None
+    requirement_ids: list[str]
+
+
+class ReportListItem(BaseModel):
+    report_id: str
+    project_id: str
+    file_id: str
+    run_id: str | None
+    report_confidence: str
+    created_at: datetime
+    approval_id: str | None
+    approval_status: str | None
