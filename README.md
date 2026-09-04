@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M5%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M6%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -152,6 +152,15 @@ Build the requirement index from the synthetic AEB documents and query it, fully
 .venv\Scripts\python.exe -m app.rag.cli query ../data/index "brake command latency" --access internal
 ```
 
+See exactly what the diagnostic agent would be shown for the late-braking log, without
+calling a model:
+
+```bash
+.venv\Scripts\python.exe -m app.agents.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv --index ../data/index --access internal --dry-run
+```
+
+With `LLM_PROVIDER=openai` and a key, drop `--dry-run` to get the ranked hypotheses.
+
 Run the quality checks:
 
 ```bash
@@ -280,12 +289,18 @@ ADAS_intelgence_platform/
 │   │   │   ├── openai_provider.py  # OpenAI SDK (chat.completions.parse for JSON schemas)
 │   │   │   ├── fake.py          # deterministic offline provider (hashed bag-of-words embeddings)
 │   │   │   └── factory.py       # build_provider(settings)
-│   │   └── rag/             # M5: requirement documents → citable chunks
-│   │       ├── schemas.py       # DocumentMeta, Chunk (§12.3 metadata), RetrievalResult
-│   │       ├── chunking.py      # front matter + heading sections → chunks, REQ/TC/INC IDs
-│   │       ├── index.py         # embeddings (.npy) + BM25 + manifest, save/load
-│   │       ├── retrieval.py     # hybrid cosine+BM25, access wall, trust/freshness rerank
-│   │       └── cli.py           # python -m app.rag.cli build|query
+│   │   ├── rag/             # M5: requirement documents → citable chunks
+│   │   │   ├── schemas.py       # DocumentMeta, Chunk (§12.3 metadata), RetrievalResult
+│   │   │   ├── chunking.py      # front matter + heading sections → chunks, REQ/TC/INC IDs
+│   │   │   ├── index.py         # embeddings (.npy) + BM25 + manifest, save/load
+│   │   │   ├── retrieval.py     # hybrid cosine+BM25, access wall, trust/freshness rerank
+│   │   │   └── cli.py           # python -m app.rag.cli build|query
+│   │   └── agents/          # M6: the diagnostic agent
+│   │       ├── schemas.py       # AgentOutput (§11.4 schema), Hypothesis, FailureClass, AgentRun
+│   │       ├── evidence.py      # EvidenceBundle: what the model may cite; injection scan
+│   │       ├── diagnostic.py    # system prompt rules, structured call, one ID-repair round
+│   │       ├── pipeline.py      # CSV → gates → metrics → retrieval → bundle
+│   │       └── cli.py           # python -m app.agents.cli <csv> --index … [--dry-run]
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
@@ -294,7 +309,8 @@ ADAS_intelgence_platform/
 │   │   ├── test_metrics.py
 │   │   ├── test_llm.py
 │   │   ├── test_llm_live.py     # skipped without OPENAI_API_KEY
-│   │   └── test_rag.py
+│   │   ├── test_rag.py
+│   │   └── test_agents.py
 │   └── pyproject.toml
 ├── data/
 │   ├── demo/                # generated telemetry, gitignored
@@ -307,8 +323,7 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/agents`, `app/verification`, `app/reports`,
-`app/api`.
+Planned packages follow the same shape: `app/verification`, `app/reports`, `app/api`.
 
 ### Tech stack
 
@@ -340,8 +355,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M3 | AEB metrics library with event windows and citable `metric_`/`window_`/`event_` IDs | ✅ done |
 | M4 | LLM provider protocol: OpenAI provider, deterministic FakeProvider, retries, call log | ✅ done |
 | M5 | Requirement RAG: heading-level chunks with §12.3 metadata, hybrid retrieval, access wall, stable `chunk_` IDs | ✅ done |
-| M6 | Diagnostic agent emitting the fixed JSON schema | 🔜 next |
-| M7 | Evidence verifier and confidence rules | ⬜ |
+| M6 | Diagnostic agent: evidence bundle, prompt-injection flags, fixed JSON schema, ID repair round | ✅ done |
+| M7 | Evidence verifier and confidence rules | 🔜 next |
 | M8 | Traceable report generator with limitations and disclaimer | ⬜ |
 | M9 | FastAPI endpoints, demo CLI, end-to-end acceptance test | ⬜ |
 | M10 | Next.js dashboard: incident explorer, evidence panel, agent trace viewer | ⬜ |
@@ -363,11 +378,12 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 100 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 114 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
   and known-bad frames; every AEB metric checked against the generator's ground truth; the
   LLM layer's retries, structured parsing and error paths against a mocked SDK client; RAG
-  chunking, stable IDs, index round-trips and the access wall.
+  chunking, stable IDs, index round-trips and the access wall; the agent's prompt
+  discipline, ID-repair round and injection flags with scripted fake answers.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the
