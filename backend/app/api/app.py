@@ -7,6 +7,7 @@ async-first spec so jobs can move to a queue later without changing clients.
 """
 
 import json
+import math
 import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -23,17 +25,23 @@ from app.agents.schemas import AgentRun
 from app.api.schemas import (
     ApprovalDecision,
     ApprovalOut,
+    ChunkOut,
     DashboardOut,
     EventOut,
     FileOut,
     IngestionJobCreate,
     IngestionJobOut,
+    MetricOut,
     ProjectCreate,
     ProjectOut,
     QueryCreate,
     QueryOut,
     ReportCreate,
+    ReportListItem,
     ReportOut,
+    RunDetailOut,
+    RunSummaryOut,
+    SignalsOut,
 )
 from app.core.config import Settings, get_settings
 from app.core.errors import (
@@ -108,6 +116,14 @@ def create_app(
 
     app = FastAPI(title="ADAS Intelligence Platform API", version=API_VERSION)
     app.state.aip = state
+    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["*"],
+        )
     _register_routes(app)
     return app
 
@@ -435,6 +451,115 @@ def _register_routes(app: FastAPI) -> None:
             Path(row.markdown_path).write_text(render_markdown(approved), encoding="utf-8")
             Path(row.json_path).write_text(render_json(approved), encoding="utf-8")
             return ApprovalOut.model_validate(t)
+
+    # --- listings and detail views for the dashboard -------------------------------------------
+
+    @app.get("/api/projects", response_model=list[ProjectOut])
+    def list_projects(state: StateDep) -> list[ProjectOut]:
+        with session_scope(state.sessions) as s:
+            return [ProjectOut.model_validate(p) for p in repo.list_projects(s)]
+
+    @app.get("/api/projects/{project_id}/files", response_model=list[FileOut])
+    def list_files(project_id: str, state: StateDep) -> list[FileOut]:
+        with session_scope(state.sessions) as s:
+            if repo.get_project(s, project_id) is None:
+                raise _not_found("project", project_id)
+            return [FileOut.model_validate(f) for f in repo.list_files(s, project_id)]
+
+    @app.get("/api/files/{file_id}/metrics", response_model=list[MetricOut])
+    def file_metrics(file_id: str, state: StateDep) -> list[MetricOut]:
+        with session_scope(state.sessions) as s:
+            if repo.get_log_file(s, file_id) is None:
+                raise _not_found("file", file_id)
+            return [MetricOut.model_validate(m) for m in repo.list_metrics(s, file_id)]
+
+    @app.get("/api/files/{file_id}/signals", response_model=SignalsOut)
+    def file_signals(file_id: str, state: StateDep, max_points: int = 1000) -> SignalsOut:
+        """Downsampled numeric telemetry for plots; metrics never use this path."""
+        with session_scope(state.sessions) as s:
+            f = repo.get_log_file(s, file_id)
+            if f is None:
+                raise _not_found("file", file_id)
+            path = Path(f.path)
+        frame = load_telemetry_csv(path, file_id=file_id).frame
+        step = max(1, math.ceil(len(frame) / max(1, max_points)))
+        sampled = frame.iloc[::step]
+        numeric = [c for c in sampled.columns if sampled[c].dtype.kind in "fiub"]
+        data: dict[str, list[float | None]] = {}
+        for col in numeric:
+            values = sampled[col].astype("float64").tolist()
+            data[col] = [None if (v != v) else float(v) for v in values]  # NaN → null
+        return SignalsOut(
+            file_id=file_id, rows_total=int(len(frame)), step=step, columns=numeric, data=data
+        )
+
+    @app.get("/api/runs", response_model=list[RunSummaryOut])
+    def list_runs(
+        state: StateDep, project_id: str | None = None, file_id: str | None = None
+    ) -> list[RunSummaryOut]:
+        with session_scope(state.sessions) as s:
+            return [
+                RunSummaryOut.model_validate(r)
+                for r in repo.list_runs(s, project_id=project_id, file_id=file_id)
+            ]
+
+    @app.get("/api/runs/{run_id}", response_model=RunDetailOut)
+    def get_run(run_id: str, state: StateDep) -> RunDetailOut:
+        with session_scope(state.sessions) as s:
+            r = repo.get_run(s, run_id)
+            if r is None:
+                raise _not_found("run", run_id)
+            summary = RunSummaryOut.model_validate(r)
+            return RunDetailOut(
+                **summary.model_dump(), run=dict(r.run_json), verification=dict(r.verification_json)
+            )
+
+    @app.get("/api/chunks/{chunk_id}", response_model=ChunkOut)
+    def get_chunk(chunk_id: str, state: StateDep, access: str = "public") -> ChunkOut:
+        """Resolve a cited requirement chunk. The access wall applies here too."""
+        if state.index is None:
+            raise HTTPException(status_code=404, detail="no RAG index loaded")
+        chunk = state.index.get(chunk_id)
+        if chunk is None:
+            raise _not_found("chunk", chunk_id)
+        from app.rag.schemas import AccessLevel
+
+        if chunk.access_level not in access_up_to(AccessLevel(access)):
+            raise HTTPException(status_code=403, detail="access level insufficient for this chunk")
+        return ChunkOut(
+            chunk_id=chunk.chunk_id,
+            document_title=chunk.document_title,
+            heading=chunk.heading,
+            text=chunk.text,
+            source_type=chunk.source_type.value,
+            access_level=chunk.access_level.value,
+            version=chunk.version,
+            requirement_ids=list(chunk.requirement_ids),
+        )
+
+    @app.get("/api/reports", response_model=list[ReportListItem])
+    def list_reports(
+        state: StateDep, project_id: str | None = None, file_id: str | None = None
+    ) -> list[ReportListItem]:
+        with session_scope(state.sessions) as s:
+            return [
+                ReportListItem(
+                    report_id=r.id,
+                    project_id=r.project_id,
+                    file_id=r.file_id,
+                    run_id=r.run_id,
+                    report_confidence=r.report_confidence,
+                    created_at=r.created_at,
+                    approval_id=t.id if t else None,
+                    approval_status=t.status if t else None,
+                )
+                for r, t in repo.list_reports(s, project_id=project_id, file_id=file_id)
+            ]
+
+    @app.get("/api/approvals", response_model=list[ApprovalOut])
+    def list_approvals(state: StateDep, status: str | None = None) -> list[ApprovalOut]:
+        with session_scope(state.sessions) as s:
+            return [ApprovalOut.model_validate(t) for t in repo.list_approvals(s, status=status)]
 
     # --- dashboard ----------------------------------------------------------------------------
 

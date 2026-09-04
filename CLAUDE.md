@@ -36,6 +36,17 @@ $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m uvicorn app.api.main:app -
 The end-to-end acceptance test is `tests/test_api_e2e.py`; it must stay green for every
 later milestone.
 
+Frontend, from `frontend/` (Node 20; on this machine set `npm_config_cache=D:/npm-cache`
+because C: is full):
+
+```
+npm install
+npm run lint
+npx tsc --noEmit
+npm run build
+npm run dev            # http://localhost:3000, expects the API on :8000
+```
+
 Add commands here only after they have actually been run successfully.
 
 ## Architecture rules

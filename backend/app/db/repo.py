@@ -257,3 +257,54 @@ def dashboard_summary(session: Session) -> dict[str, object]:
         "llm_prompt_tokens": int(tokens[0] or 0),
         "llm_completion_tokens": int(tokens[1] or 0),
     }
+
+
+# --- listings for the dashboard ------------------------------------------------------------
+
+
+def list_projects(session: Session) -> list[Project]:
+    return list(session.scalars(select(Project).order_by(Project.created_at.desc())))
+
+
+def list_files(session: Session, project_id: str) -> list[LogFile]:
+    return list(
+        session.scalars(
+            select(LogFile)
+            .where(LogFile.project_id == project_id)
+            .order_by(LogFile.uploaded_at.desc())
+        )
+    )
+
+
+def list_metrics(session: Session, file_id: str) -> list[Metric]:
+    return list(session.scalars(select(Metric).where(Metric.file_id == file_id)))
+
+
+def list_runs(
+    session: Session, *, project_id: str | None = None, file_id: str | None = None
+) -> list[AgentRunRow]:
+    stmt = select(AgentRunRow).order_by(AgentRunRow.created_at.desc())
+    if project_id:
+        stmt = stmt.where(AgentRunRow.project_id == project_id)
+    if file_id:
+        stmt = stmt.where(AgentRunRow.file_id == file_id)
+    return list(session.scalars(stmt))
+
+
+def list_reports(
+    session: Session, *, project_id: str | None = None, file_id: str | None = None
+) -> list[tuple[ReportRow, ApprovalTask | None]]:
+    stmt = select(ReportRow).order_by(ReportRow.created_at.desc())
+    if project_id:
+        stmt = stmt.where(ReportRow.project_id == project_id)
+    if file_id:
+        stmt = stmt.where(ReportRow.file_id == file_id)
+    rows = list(session.scalars(stmt))
+    return [(r, approval_for_report(session, r.id)) for r in rows]
+
+
+def list_approvals(session: Session, *, status: str | None = None) -> list[ApprovalTask]:
+    stmt = select(ApprovalTask).order_by(ApprovalTask.created_at.desc())
+    if status:
+        stmt = stmt.where(ApprovalTask.status == status)
+    return list(session.scalars(stmt))
