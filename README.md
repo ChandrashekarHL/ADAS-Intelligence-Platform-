@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M8%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-backend%20MVP%20complete%20%28M9%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -172,6 +172,30 @@ Add `--report-dir ../reports_out/late_braking` to write `report.md` and `report.
 verification**: ranked hypotheses with adjusted confidence and cited evidence, stripped
 claims with reasons, report confidence, human-review triggers, limitations and disclaimer.
 
+Or run the whole thing through the HTTP API in one go, in-process, no server needed:
+
+```bash
+.venv\Scripts\python.exe -m app.demo --out ../data/demo_run
+```
+
+To serve the API (interactive docs at http://127.0.0.1:8000/docs):
+
+```bash
+.venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000
+```
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/projects` | create a workspace |
+| POST | `/api/projects/{id}/files` | upload telemetry CSV (+ optional `scenario.json`); ingested and gated on arrival |
+| POST | `/api/ingestion/jobs` | compute events and metrics for a file |
+| GET | `/api/events` | list detected events by project or file |
+| POST | `/api/query` | run the diagnostic agent; returns the §18.2 contract after verification |
+| POST | `/api/reports` | build a verified (or metrics-only) report; opens an approval task |
+| GET | `/api/reports/{id}` | fetch the report as JSON, or `?format=md` |
+| POST | `/api/approvals/{id}/decision` | record reviewer, decision, reason; re-renders the report |
+| GET | `/api/dashboard/summary` | counts, confidence mix, pending approvals, token totals |
+
 Run the quality checks:
 
 ```bash
@@ -316,10 +340,19 @@ ADAS_intelgence_platform/
 │   │   │   ├── schemas.py       # VerificationReport, VerifiedHypothesis, ReportConfidence, DISCLAIMER
 │   │   │   ├── registry.py      # EvidenceRegistry: does this ID exist, what is it, which source
 │   │   │   └── verifier.py      # resolve IDs, strip unsupported, apply §28.1 confidence rules
-│   │   └── reports/         # M8: the §27.3 report, built from verified results only
-│   │       ├── schemas.py       # DiagnosticReport, MetricRow, HypothesisRow, ApprovalSection
-│   │       ├── builder.py       # templated executive summary, timeline, tables, appendix
-│   │       └── render.py        # Markdown + JSON; refuses to write an untraceable report
+│   │   ├── reports/         # M8: the §27.3 report, built from verified results only
+│   │   │   ├── schemas.py       # DiagnosticReport, MetricRow, HypothesisRow, ApprovalSection
+│   │   │   ├── builder.py       # templated executive summary, timeline, tables, appendix
+│   │   │   └── render.py        # Markdown + JSON; refuses to write an untraceable report
+│   │   ├── db/              # M9: SQLite via SQLAlchemy, dialect-neutral, bulk data on disk
+│   │   │   ├── base.py          # engine/session from DATABASE_URL
+│   │   │   ├── models.py        # projects, log_files, events, metrics, agent_runs, reports, approvals
+│   │   │   └── repo.py          # the only place that writes rows
+│   │   ├── api/             # M9: FastAPI, spec §18 endpoints
+│   │   │   ├── app.py           # create_app(settings, provider, index) — fully injectable
+│   │   │   ├── schemas.py       # request/response models incl. the §18.2 query contract
+│   │   │   └── main.py          # uvicorn entry point
+│   │   └── demo.py          # end-to-end demo through the API, in-process, no key needed
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
@@ -331,7 +364,8 @@ ADAS_intelgence_platform/
 │   │   ├── test_rag.py
 │   │   ├── test_agents.py
 │   │   ├── test_verification.py
-│   │   └── test_reports.py
+│   │   ├── test_reports.py
+│   │   └── test_api_e2e.py      # the acceptance test that gates every later milestone
 │   └── pyproject.toml
 ├── data/
 │   ├── demo/                # generated telemetry, gitignored
@@ -344,7 +378,7 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-The last planned package is `app/api` (FastAPI, M9).
+Every backend package of the MVP is in place; M10 adds the Next.js dashboard on top of the API.
 
 ### Tech stack
 
@@ -355,7 +389,7 @@ The last planned package is `app/api` (FastAPI, M9).
 | Numerics | NumPy, pandas (with `pandas-stubs`) | Deterministic signal processing |
 | Persistence | SQLite via SQLAlchemy 2 | Zero-ops for the MVP; PostgreSQL path documented |
 | LLM | OpenAI API behind a provider protocol | Swappable; fake provider for tests |
-| API | FastAPI (planned, M9) | Async-first, typed |
+| API | FastAPI | Typed, injectable, tested in-process |
 | Dashboard | Next.js (planned, M10) | Only after the CLI slice passes acceptance |
 
 Deliberately **not** in the MVP: Docker, Kubernetes, CARLA, ROS 2, GPUs, PostgreSQL,
@@ -379,8 +413,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M6 | Diagnostic agent: evidence bundle, prompt-injection flags, fixed JSON schema, ID repair round | ✅ done |
 | M7 | Evidence verifier: ID resolution, stripping, §28.1 confidence rules, human-review triggers | ✅ done |
 | M8 | Report generator: §27.3 template from verified results only, Markdown + JSON, traceability guard | ✅ done |
-| M9 | FastAPI endpoints, demo CLI, end-to-end acceptance test | 🔜 next |
-| M10 | Next.js dashboard: incident explorer, evidence panel, agent trace viewer | ⬜ |
+| M9 | FastAPI (§18 endpoints), SQLite persistence, approvals, in-process demo, end-to-end acceptance test | ✅ done |
+| M10 | Next.js dashboard: incident explorer, evidence panel, agent trace viewer | 🔜 next |
 
 **Definition of done for every milestone:** `pytest`, `ruff check .` and `mypy --strict`
 all pass, every module lands with tests, and the end-to-end demo test (once it exists)
@@ -399,7 +433,7 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 145 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 152 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
   and known-bad frames; every AEB metric checked against the generator's ground truth; the
   LLM layer's retries, structured parsing and error paths against a mocked SDK client; RAG
@@ -408,7 +442,9 @@ rate** with a target of fewer than 10 % unsupported claims.
   rule (stripping, single-source cap, degraded data, missing critical metrics, competing
   hypotheses, real-world language on synthetic data) against crafted agent outputs; the
   report's section order, verified-only hypotheses, and its refusal to write an untraceable
-  document.
+  document; and an end-to-end acceptance test through the HTTP API from upload to approved
+  report, with a scripted fake model that fabricates one claim so the verifier can be seen
+  removing it.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the

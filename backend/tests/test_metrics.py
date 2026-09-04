@@ -289,3 +289,23 @@ def test_cli_blocked(
     pd.read_csv(csv).drop(columns=["brake_command"]).to_csv(csv, index=False)
     assert cli_main([str(csv)]) == EXIT_BLOCKED
     assert "BLOCKED" in capsys.readouterr().err
+
+
+def test_evidence_ids_are_stable_for_the_same_file_and_thresholds(
+    late: SyntheticScenario,
+) -> None:
+    """Same file_id + same thresholds → identical metric/event/window IDs on re-computation,
+    so stored agent runs and reports keep resolving. Different thresholds → different IDs."""
+    tel = ingest_frame(late.frame, source_path="memory", file_id="file_fixed0000001")
+    q = evaluate_gates(tel)
+    a = compute_aeb_metrics(tel, q, THR)
+    b = compute_aeb_metrics(tel, q, THR)
+    assert [m.metric_id for m in a.metrics] == [m.metric_id for m in b.metrics]
+    assert [e.event_id for e in a.events] == [e.event_id for e in b.events]
+    assert [w.window_id for w in a.windows] == [w.window_id for w in b.windows]
+    assert a.quality_id == b.quality_id
+    c = compute_aeb_metrics(tel, q, AebThresholds(trigger_ttc_s=2.5))
+    assert c.metric(M_BRAKING_LATENCY).metric_id != a.metric(M_BRAKING_LATENCY).metric_id
+    other = ingest_frame(late.frame, source_path="memory", file_id="file_fixed0000002")
+    d = compute_aeb_metrics(other, evaluate_gates(other), THR)
+    assert d.metric(M_BRAKING_LATENCY).metric_id != a.metric(M_BRAKING_LATENCY).metric_id

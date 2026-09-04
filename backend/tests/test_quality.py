@@ -74,7 +74,9 @@ def test_report_is_deterministic_apart_from_id(clean: pd.DataFrame) -> None:
     tel = ingested(clean)
     a, b = evaluate_gates(tel), evaluate_gates(tel)
     assert a.gates == b.gates
-    assert a.quality_id != b.quality_id
+    # the quality verdict is evidence: same file + same policy → same quality_id
+    assert a.quality_id == b.quality_id
+    assert evaluate_gates(tel, QualityPolicy(min_rows=5)).quality_id != a.quality_id
 
 
 def test_blocked_report_raises_with_reasons(clean: pd.DataFrame) -> None:
