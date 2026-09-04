@@ -27,6 +27,7 @@ All from `backend/` (venv exists at `backend/.venv`; on Windows call its python 
 .venv\Scripts\python.exe -m app.metrics.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv    # ingest + gates + AEB metrics
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index   # offline index
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.rag.cli query ../data/index "brake command latency" --access internal
+$env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv --index ../data/index --access internal --dry-run
 ```
 
 Add commands here only after they have actually been run successfully.
