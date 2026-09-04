@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type { ReactNode } from "react";
 
 import { Nav } from "@/components/Nav";
 
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
   description: "ADAS Intelligence Platform — evidence-backed AEB diagnostics",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Explicit props rather than the generated `LayoutProps` type, so `tsc --noEmit` passes on a
+// clean checkout before `next build` has produced .next/types.
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-bg text-fg">
