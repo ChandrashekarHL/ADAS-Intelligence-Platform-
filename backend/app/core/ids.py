@@ -9,7 +9,19 @@ import hashlib
 import uuid
 
 PREFIXES = frozenset(
-    {"window", "metric", "chunk", "event", "report", "run", "doc", "file", "scenario", "quality"}
+    {
+        "window",
+        "metric",
+        "chunk",
+        "event",
+        "report",
+        "run",
+        "doc",
+        "file",
+        "scenario",
+        "quality",
+        "verification",
+    }
 )
 
 

@@ -40,13 +40,15 @@ INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 _FENCE_BREAK = re.compile(r"```")
+# Everything in C0 except \t and \n, plus DEL and the C1 range.
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 
 
 def scan_for_injection(evidence_id: str, text: str) -> tuple[InjectionFlag, ...]:
+    """One flag per match, not per pattern: an auditor needs to see every attempt."""
     flags: list[InjectionFlag] = []
     for name, pattern in INJECTION_PATTERNS:
-        m = pattern.search(text)
-        if m:
+        for m in pattern.finditer(text):
             start = max(0, m.start() - 40)
             flags.append(
                 InjectionFlag(
@@ -59,8 +61,14 @@ def scan_for_injection(evidence_id: str, text: str) -> tuple[InjectionFlag, ...]
 
 
 def neutralise(text: str) -> str:
-    """Keep untrusted text from closing our fences."""
-    return _FENCE_BREAK.sub("'''", text)
+    """Make untrusted text safe to embed in a prompt or print to a terminal.
+
+    Removes C0/C1 control characters (except newline and tab), which could otherwise
+    drive terminal escape sequences, and breaks any ``\\`\\`\\``` so document text cannot
+    close our fence and inject instructions outside the data block.
+    """
+    cleaned = _CONTROL_CHARS.sub("", text)
+    return _FENCE_BREAK.sub("'''", cleaned)
 
 
 @dataclass(frozen=True)
@@ -76,6 +84,14 @@ class EvidenceBundle:
     @property
     def offered_ids(self) -> frozenset[str]:
         return frozenset(i.evidence_id for i in self.items)
+
+    @property
+    def timestamped_ids(self) -> frozenset[str]:
+        """IDs that can support a root-cause claim on their own (spec §11.4 rule 2)."""
+        return frozenset(i.evidence_id for i in self.items if i.t_s is not None)
+
+    def get(self, evidence_id: str) -> EvidenceItem | None:
+        return next((i for i in self.items if i.evidence_id == evidence_id), None)
 
     def render(self) -> str:
         """Deterministic prompt section. Same bundle → same text → same prompt hash."""
