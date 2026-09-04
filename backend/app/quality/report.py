@@ -13,7 +13,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict
 
 from app.core.errors import DataQualityError
-from app.core.ids import new_id
+from app.core.ids import stable_id
 from app.ingestion.schemas import IngestedTelemetry
 from app.quality.gates import ALL_GATES, Gate, GateResult, GateStatus, QualityPolicy
 
@@ -61,7 +61,8 @@ def evaluate_gates(
     else:
         verdict = QualityVerdict.PASS
     return QualityReport(
-        quality_id=new_id("quality"),
+        # Stable for the same file and policy, so stored runs/reports keep resolving it.
+        quality_id=stable_id("quality", telemetry.provenance.file_id, policy.model_dump_json()),
         file_id=telemetry.provenance.file_id,
         verdict=verdict,
         gates=results,

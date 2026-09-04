@@ -178,12 +178,17 @@ def ingest_frame(
     scenario_id: str | None = None,
     sidecar_path: str | None = None,
     sha256: str | None = None,
+    file_id: str | None = None,
 ) -> IngestedTelemetry:
-    """Normalise an already-read frame. Used by :func:`load_telemetry_csv` and by tests."""
+    """Normalise an already-read frame. Used by :func:`load_telemetry_csv` and by tests.
+
+    ``file_id`` lets a caller that already registered the file (the API) keep one identity
+    across re-ingestion; otherwise a fresh ``file_`` ID is minted.
+    """
     frame, renamed, conversions, passthrough, coerced = normalise_frame(raw, column_units or {})
     duration, nominal_dt = _timing(frame)
     provenance = TelemetryProvenance(
-        file_id=new_id("file"),
+        file_id=file_id or new_id("file"),
         source_path=source_path,
         sha256=sha256,
         data_origin=data_origin,
@@ -201,7 +206,7 @@ def ingest_frame(
 
 
 def load_telemetry_csv(
-    path: Path, *, column_units: Mapping[str, str] | None = None
+    path: Path, *, column_units: Mapping[str, str] | None = None, file_id: str | None = None
 ) -> IngestedTelemetry:
     """Read a telemetry CSV (plus optional sidecar) into the canonical SI frame."""
     if not path.is_file():
@@ -224,4 +229,5 @@ def load_telemetry_csv(
         scenario_id=sidecar.scenario_id if sidecar else None,
         sidecar_path=str(sidecar_path) if sidecar_path else None,
         sha256=_sha256(path),
+        file_id=file_id,
     )

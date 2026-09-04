@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     # Large time-series data lives on the filesystem (CSV/Parquet), not in the DB.
     data_dir: Path = Path("../data")
+    # Built RAG index (app.rag.cli build). Retrieval is skipped when it does not exist.
+    index_dir: Path = Path("../data/index")
+    # Uploaded files and generated reports are stored under here, per project.
+    workspace_dir: Path = Path("../data/workspace")
 
 
 def get_settings() -> Settings:

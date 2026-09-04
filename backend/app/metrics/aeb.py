@@ -6,12 +6,14 @@ over the whole log; the window ID travels with each result. Signals are used as 
 differentiating for jerk, and that is stated in the method string.
 """
 
+import hashlib
 import math
+from contextvars import ContextVar
 
 import numpy as np
 import pandas as pd
 
-from app.core.ids import new_id
+from app.core.ids import new_id, stable_id
 from app.core.signals import (
     COL_BRAKE_CMD,
     COL_EGO_ACCEL,
@@ -56,9 +58,25 @@ M_MIN_CONF_IN_RISK = "min_confidence_during_risk"
 M_SPEED_AT_BRAKE = "ego_speed_at_brake_command_mps"
 
 
+# Evidence scope for the metrics being computed: "<file_id>:<thresholds digest>". When set,
+# metric IDs are stable across re-computation of the same file, so stored agent runs and
+# reports keep resolving. Unset (direct calls in tests) → random IDs.
+_SCOPE: ContextVar[str] = ContextVar("aeb_metric_scope", default="")
+
+
+def _metric_id(name: str) -> str:
+    scope = _SCOPE.get()
+    return stable_id("metric", scope, name) if scope else new_id("metric")
+
+
+def evidence_scope(file_id: str, thresholds: AebThresholds) -> str:
+    digest = hashlib.sha256(thresholds.model_dump_json().encode("utf-8")).hexdigest()[:8]
+    return f"{file_id}:{digest}"
+
+
 def _missing(name: str, unit: str, window_id: str | None, reason: str, method: str) -> MetricResult:
     return MetricResult(
-        metric_id=new_id("metric"),
+        metric_id=_metric_id(name),
         name=name,
         value=None,
         unit=unit,
@@ -89,7 +107,7 @@ def _result(
         else:
             passed = bool(value == threshold)
     return MetricResult(
-        metric_id=new_id("metric"),
+        metric_id=_metric_id(name),
         name=name,
         value=value,
         unit=unit,
@@ -435,21 +453,28 @@ def compute_aeb_metrics(
     thresholds = thresholds or AebThresholds()
     frame = telemetry.frame
 
-    events = detect_events(frame, thresholds)
-    windows: tuple[EventWindow, ...] = tuple(build_window(frame, e, thresholds) for e in events)
+    scope = evidence_scope(telemetry.provenance.file_id, thresholds)
+    events = detect_events(frame, thresholds, scope=scope)
+    windows: tuple[EventWindow, ...] = tuple(
+        build_window(frame, e, thresholds, scope=scope) for e in events
+    )
     anchor = primary_event(events)
     primary: EventWindow | None = None
     if anchor is not None:
         primary = next(w for w in windows if w.event_id == anchor.event_id)
-        scope = slice_window(frame, primary)
+        analysed = slice_window(frame, primary)
         # Only events inside the window are attributed to it.
         in_scope = tuple(e for e in events if primary.start_row <= e.row <= primary.end_row)
     else:
-        scope, in_scope = frame, events
+        analysed, in_scope = frame, events
 
-    metrics = compute_metrics_in_frame(
-        scope, thresholds, primary.window_id if primary else None, in_scope
-    )
+    token = _SCOPE.set(scope)
+    try:
+        metrics = compute_metrics_in_frame(
+            analysed, thresholds, primary.window_id if primary else None, in_scope
+        )
+    finally:
+        _SCOPE.reset(token)
     return AebMetricsReport(
         file_id=telemetry.provenance.file_id,
         quality_id=quality.quality_id,

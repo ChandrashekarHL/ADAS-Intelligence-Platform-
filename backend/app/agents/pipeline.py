@@ -49,9 +49,14 @@ def prepare_diagnosis(
     filters: RetrievalFilters,
     thresholds: AebThresholds | None = None,
     top_k: int = 6,
+    file_id: str | None = None,
 ) -> DiagnosisInputs:
-    """Run every deterministic stage. Raises DataQualityError when the gates block."""
-    telemetry = load_telemetry_csv(csv_path)
+    """Run every deterministic stage. Raises DataQualityError when the gates block.
+
+    ``file_id`` keeps a previously registered file identity (see the API); otherwise a
+    fresh one is minted.
+    """
+    telemetry = load_telemetry_csv(csv_path, file_id=file_id)
     quality = evaluate_gates(telemetry)
     metrics = compute_aeb_metrics(telemetry, quality, thresholds)  # enforces the gate
     retrieval: RetrievalResult | None = None

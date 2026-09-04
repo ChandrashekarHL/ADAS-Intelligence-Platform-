@@ -10,7 +10,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from app.core.ids import new_id
+from app.core.ids import new_id, stable_id
 from app.core.signals import (
     COL_BRAKE_CMD,
     COL_REL_DISTANCE,
@@ -37,17 +37,29 @@ def _first_true_row(mask: "pd.Series[bool]") -> int | None:
     return int(idx[0]) if idx.size else None
 
 
-def detect_events(frame: pd.DataFrame, thresholds: AebThresholds) -> tuple[Event, ...]:
-    """Find the AEB-relevant events present in the frame, in time order."""
+def _event_id(scope: str, kind: EventType) -> str:
+    """Stable within an evidence scope (file + thresholds); random when no scope is given."""
+    return stable_id("event", scope, kind.value) if scope else new_id("event")
+
+
+def detect_events(
+    frame: pd.DataFrame, thresholds: AebThresholds, *, scope: str = ""
+) -> tuple[Event, ...]:
+    """Find the AEB-relevant events present in the frame, in time order.
+
+    ``scope`` (normally ``"<file_id>:<thresholds digest>"``) makes the IDs reproducible so
+    a re-computation for the same file yields the same evidence IDs.
+    """
     t = frame[COL_TIMESTAMP].to_numpy(dtype="float64")
     events: list[Event] = []
 
     if COL_BRAKE_CMD in frame.columns:
         row = _first_true_row(frame[COL_BRAKE_CMD] == 1)
         if row is not None:
+            kind = EventType.AEB_BRAKE_COMMAND
             events.append(
                 Event(
-                    event_id=new_id("event"),
+                    event_id=_event_id(scope, kind),
                     event_type=EventType.AEB_BRAKE_COMMAND,
                     t_s=float(t[row]),
                     row=row,
@@ -59,9 +71,10 @@ def detect_events(frame: pd.DataFrame, thresholds: AebThresholds) -> tuple[Event
         ttc = ttc_series(frame, thresholds.closing_speed_floor_mps)
         row = _first_true_row(ttc <= thresholds.trigger_ttc_s)
         if row is not None:
+            kind = EventType.TTC_THRESHOLD_CROSSING
             events.append(
                 Event(
-                    event_id=new_id("event"),
+                    event_id=_event_id(scope, kind),
                     event_type=EventType.TTC_THRESHOLD_CROSSING,
                     t_s=float(t[row]),
                     row=row,
@@ -70,9 +83,10 @@ def detect_events(frame: pd.DataFrame, thresholds: AebThresholds) -> tuple[Event
             )
         row = _first_true_row(frame[COL_REL_DISTANCE] <= thresholds.collision_gap_m)
         if row is not None:
+            kind = EventType.COLLISION
             events.append(
                 Event(
-                    event_id=new_id("event"),
+                    event_id=_event_id(scope, kind),
                     event_type=EventType.COLLISION,
                     t_s=float(t[row]),
                     row=row,
@@ -85,7 +99,9 @@ def detect_events(frame: pd.DataFrame, thresholds: AebThresholds) -> tuple[Event
     return tuple(sorted(events, key=lambda e: (e.t_s, e.event_type.value)))
 
 
-def build_window(frame: pd.DataFrame, event: Event, thresholds: AebThresholds) -> EventWindow:
+def build_window(
+    frame: pd.DataFrame, event: Event, thresholds: AebThresholds, *, scope: str = ""
+) -> EventWindow:
     t = frame[COL_TIMESTAMP].to_numpy(dtype="float64")
     want_start = event.t_s - thresholds.window_pre_s
     want_end = event.t_s + thresholds.window_post_s
@@ -93,7 +109,7 @@ def build_window(frame: pd.DataFrame, event: Event, thresholds: AebThresholds) -
     end_row = int(np.searchsorted(t, want_end, side="right")) - 1
     end_row = max(end_row, start_row)
     return EventWindow(
-        window_id=new_id("window"),
+        window_id=stable_id("window", scope, event.event_id) if scope else new_id("window"),
         event_id=event.event_id,
         t_event_s=event.t_s,
         start_s=float(t[start_row]),
