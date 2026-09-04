@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from app.agents.diagnostic import DEFAULT_QUESTION, DiagnosticAgent
+from app.agents.evidence import neutralise
 from app.agents.pipeline import prepare_diagnosis
 from app.core.config import get_settings
 from app.core.errors import DataQualityError, ProviderError
@@ -22,6 +23,7 @@ from app.llm.factory import build_provider
 from app.rag.cli import access_up_to
 from app.rag.index import ChunkIndex
 from app.rag.schemas import AccessLevel, RetrievalFilters
+from app.verification.verifier import verify_diagnosis
 
 EXIT_BLOCKED = 2
 EXIT_NO_PROVIDER = 3
@@ -58,15 +60,17 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_BLOCKED
 
     bundle = inputs.bundle
+    agent = DiagnosticAgent(provider)
     if args.dry_run:
         print(f"offered evidence ids: {len(bundle.offered_ids)}  missing: {len(bundle.missing)}")
         if bundle.injection_flags:
             print(f"injection flags: {[f.pattern for f in bundle.injection_flags]}")
-        print(f"QUESTION: {args.question}\n")
-        print(bundle.render())
+        # Show exactly what the model would receive: every message, with its role.
+        for msg in agent.build_request(bundle, args.question).messages:
+            print(f"\n===== {msg.role.value.upper()} MESSAGE =====")
+            print(neutralise(msg.content))
         return 0
 
-    agent = DiagnosticAgent(provider)
     try:
         run = agent.run(bundle, args.question)
     except ProviderError as exc:
@@ -76,8 +80,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"NO PROVIDER ANSWER: {exc}{hint}", file=sys.stderr)
         return EXIT_NO_PROVIDER
 
+    verification = verify_diagnosis(run, inputs)
     if args.json:
-        print(json.dumps(run.model_dump(mode="json"), indent=2))
+        payload = {
+            "run": run.model_dump(mode="json"),
+            "verification": verification.model_dump(mode="json"),
+        }
+        print(json.dumps(payload, indent=2))
         return 0
     print(
         f"{run.run_id}  agent={run.agent}  provider={run.provider}/{run.model}  "
@@ -86,22 +95,43 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"  tokens={run.usage.total_tokens}  latency={run.latency_s:.2f}s  origin={run.data_origin}"
     )
-    if run.unresolved_ids:
-        print(f"  UNRESOLVED IDS (verifier will strip): {', '.join(run.unresolved_ids)}")
-    out = run.output
+    v = verification
+    print(
+        f"{v.verification_id}  confidence={v.report_confidence.value.upper()}  "
+        f"human_review={'YES' if v.human_review_required else 'no'}  "
+        f"evidence_support={v.evidence_support_rate:.0%}  "
+        f"unsupported_claims={v.unsupported_claim_rate:.0%}"
+    )
+    for reason in v.review_reasons:
+        print(f"  REVIEW: {reason}")
     print("observations:")
-    for o in out.observations:
-        print(f"  - {o}")
-    print("hypotheses:")
-    for i, h in enumerate(out.hypotheses, 1):
-        print(f"  {i}. [{h.failure_class.value}] conf={h.confidence:.2f} {h.cause}")
-        print(f"     evidence: {', '.join(h.evidence_ids) or '-'}")
+    for o in run.output.observations:
+        flag = "  [FLAGGED: unknown ids]" if o in v.flagged_observations else ""
+        print(f"  - {neutralise(o)}{flag}")
+    print("hypotheses (verified, ranked):")
+    for i, h in enumerate(v.hypotheses, 1):
+        hy = h.hypothesis
+        print(
+            f"  {i}. [{hy.failure_class.value}] {h.confidence_label.value} "
+            f"(agent {h.agent_confidence:.2f} -> adjusted {h.adjusted_confidence:.2f}) "
+            f"{neutralise(hy.cause)}"
+        )
+        sources = ", ".join(h.independent_sources)
+        print(f"     evidence: {', '.join(h.resolved_ids)}  sources: {sources}")
+        for note in h.notes:
+            print(f"     note: {note}")
+    for s in v.stripped:
+        print(f"  STRIPPED: {neutralise(s.hypothesis.cause)}  ({s.reason})")
     print("missing_evidence:")
-    for m in out.missing_evidence:
-        print(f"  - {m}")
+    for m in v.missing_evidence:
+        print(f"  - {neutralise(m)}")
     print("recommended_next_tests:")
-    for t in out.recommended_next_tests:
-        print(f"  - {t}")
+    for t in v.recommended_next_tests:
+        print(f"  - {neutralise(t)}")
+    print("limitations:")
+    for lim in v.limitations:
+        print(f"  - {lim}")
+    print(f"disclaimer: {v.disclaimer}")
     return 0
 
 

@@ -1,9 +1,13 @@
 """The AEB diagnostic agent.
 
-One structured call (plus at most one repair round when the model cites IDs it was not
-given). The agent does not decide what is true: it proposes hypotheses over the evidence
-bundle, and the verifier (M7) strips anything unsupported. What the agent *does* enforce
-is the prompt discipline from spec §11.4.
+One structured call plus at most one repair round. The agent does not decide what is
+true: it proposes hypotheses over the evidence bundle and the verifier (M7) is the
+authority that strips anything unsupported. What the agent enforces itself is the prompt
+discipline from spec §11.4, and it uses the repair round to fix the two most common
+violations before the verifier ever sees them:
+
+* citing an ID that was not offered, and
+* asserting a cause with no timestamped evidence (only documents, or nothing at all).
 """
 
 import hashlib
@@ -32,8 +36,9 @@ SYSTEM_PROMPT = "\n".join(
         "1. Use ONLY the evidence provided. Cite evidence by its exact ID (metric_…, event_…, "
         "window_…, chunk_…, quality_…, file_…). Never invent an ID and never cite an ID that "
         "is not listed.",
-        "2. Never assert a root cause without timestamped evidence. If the evidence is "
-        "insufficient, say so in missing_evidence and lower your confidence.",
+        "2. Never assert a root cause without timestamped evidence: every hypothesis must cite "
+        "at least one metric_, event_ or window_ ID. If the evidence is insufficient, say so "
+        "in missing_evidence and lower your confidence.",
         f"3. Each hypothesis needs: a concrete cause, a failure_class from [{_FAILURE_CLASSES}], "
         "the evidence_ids that support it, and a confidence in [0, 1]. Order hypotheses from "
         "most to least likely.",
@@ -60,12 +65,45 @@ def _prompt_hash(messages: tuple[ChatMessage, ...]) -> str:
     return h.hexdigest()
 
 
+def find_problems(output: AgentOutput, bundle: EvidenceBundle) -> tuple[list[str], list[int]]:
+    """``(unresolved_ids, untimestamped_hypothesis_indices)`` for one answer."""
+    offered = bundle.offered_ids
+    timestamped = bundle.timestamped_ids
+    unresolved = sorted(output.cited_ids - offered)
+    weak = [
+        i
+        for i, h in enumerate(output.hypotheses)
+        if not any(e in timestamped for e in h.evidence_ids)
+    ]
+    return unresolved, weak
+
+
+def _repair_message(unresolved: list[str], weak: list[int], output: AgentOutput) -> str:
+    parts: list[str] = ["Your answer violates the rules and must be corrected."]
+    if unresolved:
+        parts.append(
+            "It cited evidence IDs that were NOT provided: "
+            + ", ".join(unresolved)
+            + ". Remove or replace them using only the listed IDs."
+        )
+    if weak:
+        causes = "; ".join(f"#{i + 1} '{output.hypotheses[i].cause[:60]}'" for i in weak)
+        parts.append(
+            f"Hypotheses {causes} cite no timestamped evidence (metric_, event_ or window_). "
+            "Add the timestamped IDs that support them, or drop them and describe what is "
+            "missing in missing_evidence."
+        )
+    parts.append("Return the corrected JSON only.")
+    return " ".join(parts)
+
+
 class DiagnosticAgent:
     def __init__(self, provider: LLMProvider, *, max_repair_rounds: int = 1) -> None:
         self._provider = provider
         self._max_repair = max_repair_rounds
 
-    def _request(self, bundle: EvidenceBundle, question: str) -> LLMRequest:
+    def build_request(self, bundle: EvidenceBundle, question: str) -> LLMRequest:
+        """The exact first request the agent will send (also used by ``--dry-run``)."""
         user = f"QUESTION: {question}\n\n{bundle.render()}"
         return LLMRequest(
             messages=(
@@ -79,34 +117,23 @@ class DiagnosticAgent:
 
     def run(self, bundle: EvidenceBundle, question: str = DEFAULT_QUESTION) -> AgentRun:
         started = time.perf_counter()
-        request = self._request(bundle, question)
+        request = self.build_request(bundle, question)
         prompt_hash = _prompt_hash(request.messages)
-        offered = bundle.offered_ids
 
         output, response = self._provider.complete_structured(request, AgentOutput)
         usage = response.usage
         attempts = 1
-        unresolved = sorted(output.cited_ids - offered)
+        unresolved, weak = find_problems(output, bundle)
 
-        # Repair round: tell the model exactly which IDs were invalid and ask again.
         rounds = 0
-        while unresolved and rounds < self._max_repair:
+        while (unresolved or weak) and rounds < self._max_repair:
             rounds += 1
             attempts += 1
             repair = LLMRequest(
                 messages=(
                     *request.messages,
                     ChatMessage(role=Role.ASSISTANT, content=output.model_dump_json()),
-                    ChatMessage(
-                        role=Role.USER,
-                        content=(
-                            "Your answer cited evidence IDs that were NOT provided: "
-                            + ", ".join(unresolved)
-                            + ". Remove or replace them using only the listed IDs, and move "
-                            "anything you can no longer support into missing_evidence. "
-                            "Return the corrected JSON."
-                        ),
-                    ),
+                    ChatMessage(role=Role.USER, content=_repair_message(unresolved, weak, output)),
                 ),
                 temperature=0.0,
                 seed=0,
@@ -114,7 +141,7 @@ class DiagnosticAgent:
             )
             output, response = self._provider.complete_structured(repair, AgentOutput)
             usage = usage + response.usage
-            unresolved = sorted(output.cited_ids - offered)
+            unresolved, weak = find_problems(output, bundle)
 
         return AgentRun(
             run_id=new_id("run"),
@@ -122,12 +149,13 @@ class DiagnosticAgent:
             provider=self._provider.name,
             model=response.model,
             question=question,
-            offered_evidence_ids=tuple(sorted(offered)),
+            offered_evidence_ids=tuple(sorted(bundle.offered_ids)),
             missing_evidence_offered=bundle.missing,
             injection_flags=bundle.injection_flags,
             prompt_sha256=prompt_hash,
             attempts=attempts,
             unresolved_ids=tuple(unresolved),
+            untimestamped_hypotheses=tuple(weak),
             usage=usage,
             latency_s=time.perf_counter() - started,
             output=output,

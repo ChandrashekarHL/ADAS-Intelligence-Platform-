@@ -97,6 +97,7 @@ class AgentRun(BaseModel):
     prompt_sha256: str
     attempts: int
     unresolved_ids: tuple[str, ...]  # cited but not offered, after any repair round
+    untimestamped_hypotheses: tuple[int, ...] = ()  # indices lacking metric/event/window support
     usage: TokenUsage
     latency_s: float
     output: AgentOutput

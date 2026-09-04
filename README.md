@@ -13,7 +13,7 @@ No evidence, no claim.
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![CI](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandrashekarHL/ADAS-Intelligence-Platform-/actions/workflows/ci.yml)
 [![Pydantic](https://img.shields.io/badge/models-pydantic%20v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M6%2F10%29-orange)](#-roadmap)
+[![Status](https://img.shields.io/badge/status-MVP%20in%20progress%20%28M7%2F10%29-orange)](#-roadmap)
 
 [Why AIP](#-why-aip) •
 [How it works](#-how-it-works) •
@@ -78,8 +78,12 @@ flowchart LR
 4. **Diagnose.** An LLM agent receives only the evidence windows, metrics and retrieved
    requirement chunks. It must answer in a fixed JSON schema and may cite only the evidence
    IDs it was handed.
-5. **Verify.** Every cited ID is resolved. Anything unresolvable is removed or marked
-   unsupported. Confidence is capped by evidence quality.
+5. **Verify.** Every cited ID is resolved against the evidence registry. Hypotheses with no
+   resolvable or no timestamped evidence are stripped. Confidence is recomputed by rule:
+   a single source caps at Medium, degraded data caps at Medium, a missing critical metric
+   caps at Low, competing high-confidence hypotheses or injection-flagged sources trigger
+   human review, and synthetic data forbids real-world claims. Every rule applied is
+   recorded on the verification artifact.
 6. **Report.** A report with a timeline, metrics table, ranked hypotheses, missing
    evidence, recommended next tests, limitations and a mandatory disclaimer.
 
@@ -159,7 +163,9 @@ calling a model:
 .venv\Scripts\python.exe -m app.agents.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv --index ../data/index --access internal --dry-run
 ```
 
-With `LLM_PROVIDER=openai` and a key, drop `--dry-run` to get the ranked hypotheses.
+With `LLM_PROVIDER=openai` and a key, drop `--dry-run` to get the agent's answer **after
+verification**: ranked hypotheses with adjusted confidence and cited evidence, stripped
+claims with reasons, report confidence, human-review triggers, limitations and disclaimer.
 
 Run the quality checks:
 
@@ -295,12 +301,16 @@ ADAS_intelgence_platform/
 │   │   │   ├── index.py         # embeddings (.npy) + BM25 + manifest, save/load
 │   │   │   ├── retrieval.py     # hybrid cosine+BM25, access wall, trust/freshness rerank
 │   │   │   └── cli.py           # python -m app.rag.cli build|query
-│   │   └── agents/          # M6: the diagnostic agent
-│   │       ├── schemas.py       # AgentOutput (§11.4 schema), Hypothesis, FailureClass, AgentRun
-│   │       ├── evidence.py      # EvidenceBundle: what the model may cite; injection scan
-│   │       ├── diagnostic.py    # system prompt rules, structured call, one ID-repair round
-│   │       ├── pipeline.py      # CSV → gates → metrics → retrieval → bundle
-│   │       └── cli.py           # python -m app.agents.cli <csv> --index … [--dry-run]
+│   │   ├── agents/          # M6: the diagnostic agent
+│   │   │   ├── schemas.py       # AgentOutput (§11.4 schema), Hypothesis, FailureClass, AgentRun
+│   │   │   ├── evidence.py      # EvidenceBundle: what the model may cite; injection scan
+│   │   │   ├── diagnostic.py    # system prompt rules, structured call, one repair round
+│   │   │   ├── pipeline.py      # CSV → gates → metrics → retrieval → bundle
+│   │   │   └── cli.py           # python -m app.agents.cli <csv> --index … [--dry-run]
+│   │   └── verification/    # M7: the authority between agent and report
+│   │       ├── schemas.py       # VerificationReport, VerifiedHypothesis, ReportConfidence, DISCLAIMER
+│   │       ├── registry.py      # EvidenceRegistry: does this ID exist, what is it, which source
+│   │       └── verifier.py      # resolve IDs, strip unsupported, apply §28.1 confidence rules
 │   ├── tests/
 │   │   ├── test_skeleton.py
 │   │   ├── test_synthetic.py
@@ -310,7 +320,8 @@ ADAS_intelgence_platform/
 │   │   ├── test_llm.py
 │   │   ├── test_llm_live.py     # skipped without OPENAI_API_KEY
 │   │   ├── test_rag.py
-│   │   └── test_agents.py
+│   │   ├── test_agents.py
+│   │   └── test_verification.py
 │   └── pyproject.toml
 ├── data/
 │   ├── demo/                # generated telemetry, gitignored
@@ -323,7 +334,7 @@ ADAS_intelgence_platform/
 └── CLAUDE.md                # operational rules for AI-assisted development
 ```
 
-Planned packages follow the same shape: `app/verification`, `app/reports`, `app/api`.
+Planned packages follow the same shape: `app/reports`, `app/api`.
 
 ### Tech stack
 
@@ -356,8 +367,8 @@ The MVP is a single vertical slice: **AEB late-braking diagnostics, CLI-first.**
 | M4 | LLM provider protocol: OpenAI provider, deterministic FakeProvider, retries, call log | ✅ done |
 | M5 | Requirement RAG: heading-level chunks with §12.3 metadata, hybrid retrieval, access wall, stable `chunk_` IDs | ✅ done |
 | M6 | Diagnostic agent: evidence bundle, prompt-injection flags, fixed JSON schema, ID repair round | ✅ done |
-| M7 | Evidence verifier and confidence rules | 🔜 next |
-| M8 | Traceable report generator with limitations and disclaimer | ⬜ |
+| M7 | Evidence verifier: ID resolution, stripping, §28.1 confidence rules, human-review triggers | ✅ done |
+| M8 | Traceable report generator with limitations and disclaimer | 🔜 next |
 | M9 | FastAPI endpoints, demo CLI, end-to-end acceptance test | ⬜ |
 | M10 | Next.js dashboard: incident explorer, evidence panel, agent trace viewer | ⬜ |
 
@@ -378,12 +389,14 @@ rate** with a target of fewer than 10 % unsupported claims.
 
 ## 🧪 Testing philosophy
 
-- **Every module ships with tests.** 114 so far: the generator's determinism, physics and
+- **Every module ships with tests.** 133 so far: the generator's determinism, physics and
   fault injection; ingestion's unit conversion and provenance; every quality gate on clean
   and known-bad frames; every AEB metric checked against the generator's ground truth; the
   LLM layer's retries, structured parsing and error paths against a mocked SDK client; RAG
   chunking, stable IDs, index round-trips and the access wall; the agent's prompt
-  discipline, ID-repair round and injection flags with scripted fake answers.
+  discipline, repair round and injection flags with scripted fake answers; every verifier
+  rule (stripping, single-source cap, degraded data, missing critical metrics, competing
+  hypotheses, real-world language on synthetic data) against crafted agent outputs.
 - **Same seed, same bytes.** Regenerating a scenario from its sidecar produces an identical
   DataFrame.
 - **Ground truth is noise-free.** Changing the seed changes the measurement noise, never the
