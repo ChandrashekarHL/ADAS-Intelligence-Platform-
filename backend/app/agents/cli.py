@@ -38,7 +38,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--top-k", type=int, default=6)
     p.add_argument("--dry-run", action="store_true", help="print the prompt, do not call the model")
     p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--report-dir",
+        type=Path,
+        default=None,
+        help="write report.md + report.json here (metrics-only report with --dry-run)",
+    )
     return p
+
+
+def _write(inputs: object, run: object, verification: object, out_dir: Path) -> None:
+    # Local import keeps the CLI importable even if reports grow heavy dependencies later.
+    from app.agents.pipeline import DiagnosisInputs
+    from app.agents.schemas import AgentRun
+    from app.reports.builder import build_report
+    from app.reports.render import write_report
+    from app.verification.registry import EvidenceRegistry
+    from app.verification.schemas import VerificationReport
+
+    assert isinstance(inputs, DiagnosisInputs)
+    assert run is None or isinstance(run, AgentRun)
+    assert verification is None or isinstance(verification, VerificationReport)
+    registry = EvidenceRegistry.from_bundle(inputs.bundle, inputs.retrieval)
+    report = build_report(inputs, run, verification, registry=registry)
+    md, js = write_report(report, out_dir, registry)
+    print(f"report written: {md}  {js}  ({report.metadata.report_id})")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,6 +93,8 @@ def main(argv: list[str] | None = None) -> int:
         for msg in agent.build_request(bundle, args.question).messages:
             print(f"\n===== {msg.role.value.upper()} MESSAGE =====")
             print(neutralise(msg.content))
+        if args.report_dir:
+            _write(inputs, None, None, args.report_dir)
         return 0
 
     try:
@@ -81,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_NO_PROVIDER
 
     verification = verify_diagnosis(run, inputs)
+    if args.report_dir:
+        _write(inputs, run, verification, args.report_dir)
     if args.json:
         payload = {
             "run": run.model_dump(mode="json"),
