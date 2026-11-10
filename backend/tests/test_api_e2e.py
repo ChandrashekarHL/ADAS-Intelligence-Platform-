@@ -396,3 +396,44 @@ def test_dashboard_listing_endpoints_and_cors(
         headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"},
     )
     assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+class _RenamedProvider(FakeProvider):
+    """A FakeProvider that reports a different provider name, to forge an index mismatch."""
+
+    @property
+    def name(self) -> str:
+        return "openai"
+
+
+def test_query_returns_409_when_index_provider_differs(
+    tmp_path: Path, scenario_dirs: dict[str, Path]
+) -> None:
+    """An index embedded by another provider is a config error, not a 500."""
+    foreign = _RenamedProvider(scripted=scripted_diagnosis, embedding_dim=32)
+    foreign_index = build_index(DOCS, foreign)  # manifest says "openai"
+    assert foreign_index.manifest.embedding_provider == "openai"
+
+    settings = Settings(
+        _env_file=None,
+        llm_provider="fake",
+        database_url=f"sqlite:///{(tmp_path / 'aip.sqlite').as_posix()}",
+        workspace_dir=tmp_path / "workspace",
+        index_dir=tmp_path / "no-index-here",
+    )
+    # Query provider is "fake"; the index was embedded by "openai".
+    app = create_app(
+        settings, provider=FakeProvider(scripted=scripted_diagnosis), index=foreign_index
+    )
+    with TestClient(app) as c:
+        project_id = c.post("/api/projects", json={"name": "mismatch"}).json()["id"]
+        f = upload(c, project_id, scenario_dirs["late_braking"])
+        c.post("/api/ingestion/jobs", json={"file_id": f["id"]})
+        r = c.post(
+            "/api/query",
+            json={"project_id": project_id, "file_id": f["id"], "access_level": "internal"},
+        )
+        assert r.status_code == 409, r.text
+        detail = r.json()["detail"]
+        assert "does not match the configured LLM provider" in detail
+        assert "app.rag.cli build" in detail  # the message says how to fix it

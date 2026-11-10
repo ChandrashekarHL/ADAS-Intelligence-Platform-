@@ -31,10 +31,17 @@ $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/dem
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv --index ../data/index --access internal --dry-run --report-dir ../reports_out/late_braking   # metrics-only report.md + report.json
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.demo --out ../data/demo_run       # end-to-end through the API, in-process
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000  # serve; docs at /docs
+.venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index_openai   # real-embedding index (needs OPENAI_API_KEY)
 ```
 
 The end-to-end acceptance test is `tests/test_api_e2e.py`; it must stay green for every
 later milestone.
+
+An index is only usable by the provider that embedded it: `retrieve()` raises
+`IndexError_` on a mismatch and the API turns that into a 409 naming the rebuild command.
+Two indexes therefore coexist — `data/index` (fake embeddings, offline) and
+`data/index_openai` (real embeddings). `backend/.env` sets `INDEX_DIR` to the real one;
+`start.bat` points it back at `data/index` whenever it falls back to the fake provider.
 
 Frontend, from `frontend/` (Node 20; on this machine set `npm_config_cache=D:/npm-cache`
 because C: is full):

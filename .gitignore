@@ -27,6 +27,7 @@ htmlcov/
 # Generated data, reports, model artifacts
 data/demo/
 data/index/
+data/index_openai/
 data/demo_run/
 data/workspace/
 runs/
