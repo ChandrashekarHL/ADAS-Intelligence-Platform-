@@ -51,6 +51,9 @@ jobs:
       - name: Smoke test the demo generator
         run: python -m app.synthetic.cli --all --seed 42 --out ../data/demo
 
+      - name: Evaluation suite (deterministic release gate)
+        run: python -m app.eval.cli run --no-agent --out ../evals/ci
+
   frontend:
     name: frontend / lint + typecheck + build
     runs-on: ubuntu-latest

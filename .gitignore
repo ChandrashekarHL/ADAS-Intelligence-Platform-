@@ -28,10 +28,12 @@ htmlcov/
 data/demo/
 data/index/
 data/index_openai/
-data/demo_run/
+data/demo_run*/
 data/workspace/
 runs/
 reports_out/
+evals/results/
+evals/ci/
 *.parquet
 *.onnx
 *.pt
