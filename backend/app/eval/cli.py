@@ -21,6 +21,8 @@ from app.eval.runner import RunOptions, load_report, run_suite, write_report
 from app.eval.schemas import EvalReport, GateThresholds
 from app.eval.suite import LOCKED_SUITE, select_cases, suite_sha256
 from app.llm.factory import build_provider
+from app.llm.fake import FakeProvider
+from app.llm.provider import LLMProvider
 from app.rag.cli import access_up_to
 from app.rag.index import ChunkIndex
 from app.rag.schemas import AccessLevel, RetrievalFilters
@@ -120,9 +122,13 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    settings = get_settings()
-    provider = build_provider(settings)
     run_agent = not args.no_agent
+    provider: LLMProvider
+    if not run_agent and args.index is None:
+        # Deterministic checks need no model and no embeddings: never require a key (CI).
+        provider = FakeProvider()
+    else:
+        provider = build_provider(get_settings())
     if run_agent and provider.name == "fake":
         print(
             "LLM_PROVIDER=fake has no answers; pass --no-agent for deterministic checks only",

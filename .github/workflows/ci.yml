@@ -52,6 +52,8 @@ jobs:
         run: python -m app.synthetic.cli --all --seed 42 --out ../data/demo
 
       - name: Evaluation suite (deterministic release gate)
+        env:
+          LLM_PROVIDER: fake  # no model, no key: deterministic checks only
         run: python -m app.eval.cli run --no-agent --out ../evals/ci
 
   frontend:

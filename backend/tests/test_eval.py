@@ -407,6 +407,20 @@ def test_render_markdown_lists_gate_failures(bad_report: EvalReport) -> None:
     assert "top1_accuracy 0.00 < 1.00" in text
 
 
+def test_cli_no_agent_needs_no_provider_or_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CI runs the deterministic suite with the default provider config and no key."""
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)  # no backend/.env in reach
+    code = cli_main(
+        ["run", "--no-agent", "--out", str(tmp_path / "out"), "--work-dir", str(tmp_path / "w"),
+         "--cases", "blocked_missing_ego_speed"]
+    )
+    assert code == 0
+
+
 def test_cli_list_run_and_exit_codes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
