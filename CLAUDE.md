@@ -32,10 +32,18 @@ $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/dem
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.demo --out ../data/demo_run       # end-to-end through the API, in-process
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000  # serve; docs at /docs
 .venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index_openai   # real-embedding index (needs OPENAI_API_KEY)
+$env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.eval.cli run --no-agent --out ../evals/ci   # locked suite, deterministic checks only (CI gate)
+.venv\Scripts\python.exe -m app.eval.cli run --index ../data/index_openai --access internal --out ../evals/results --baseline ../evals/baseline.json   # live agent eval + regression gate (needs OPENAI_API_KEY, ~30k tokens)
 ```
 
 The end-to-end acceptance test is `tests/test_api_e2e.py`; it must stay green for every
 later milestone.
+
+The evaluation suite (`app/eval/`, docs in `docs/evaluation.md`) is the release gate from
+spec §19: a locked set of synthetic scenarios with hand-pinned expectations. CI runs it
+with `--no-agent`; the live run records agent accuracy and is compared against
+`evals/baseline.json`. Any prompt, model or verifier change must be run through it and the
+baseline re-promoted deliberately (copy the new result JSON over `evals/baseline.json`).
 
 An index is only usable by the provider that embedded it: `retrieve()` raises
 `IndexError_` on a mismatch and the API turns that into a 409 naming the rebuild command.

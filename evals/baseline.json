@@ -1,0 +1,873 @@
+{
+  "agent_enabled": true,
+  "aggregates": {
+    "completion_tokens": 5576,
+    "false_fault_rate": 0.5,
+    "latency_p50_s": 12.015862199943513,
+    "latency_p95_s": 23.7741062999703,
+    "max_unsupported_claim_rate": 0.0,
+    "mean_evidence_support_rate": 1.0,
+    "n_agent_cases": 9,
+    "n_cases": 10,
+    "n_errors": 0,
+    "n_failed": 7,
+    "n_fault_cases_scored": 5,
+    "n_human_review_required": 5,
+    "n_nominal_cases_scored": 4,
+    "n_passed": 3,
+    "prompt_tokens": 31682,
+    "top1_accuracy": 0.0
+  },
+  "cases": [
+    {
+      "agent": {
+        "acceptable_class_rank": 2,
+        "attempts": 2,
+        "completion_tokens": 1046,
+        "evidence_support_rate": 1.0,
+        "human_review_required": true,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 3,
+        "injection_flags": 0,
+        "latency_s": 23.7741062999703,
+        "prompt_tokens": 5673,
+        "report_confidence": "high",
+        "run_id": "run_a1e1ba6e0e4f",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_2c1349558f99"
+      },
+      "agent_checks": [
+        {
+          "detail": "top=planner_logic_error, acceptable=['fusion_error', 'perception_error'], first acceptable at rank 2",
+          "name": "top_hypothesis_class",
+          "passed": false
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "late_braking_seed42",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.8)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=True)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.0)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.64)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.1669658333016159)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=True, metrics=True",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.800, metrics=0.8",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "fault",
+      "scenario_id": "scenario_2da0d898f74c",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": 2,
+        "attempts": 1,
+        "completion_tokens": 608,
+        "evidence_support_rate": 1.0,
+        "human_review_required": true,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 3,
+        "injection_flags": 0,
+        "latency_s": 12.445057400036603,
+        "prompt_tokens": 2576,
+        "report_confidence": "high",
+        "run_id": "run_b7599081f7d1",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_14c82c95431d"
+      },
+      "agent_checks": [
+        {
+          "detail": "top=planner_logic_error, acceptable=['fusion_error', 'perception_error'], first acceptable at rank 2",
+          "name": "top_hypothesis_class",
+          "passed": false
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "late_braking_seed7",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.82)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=True)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.0)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.66)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.1708467716221141)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=True, metrics=True",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.800, metrics=0.82",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "fault",
+      "scenario_id": "scenario_73d8af1fcac7",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": 2,
+        "attempts": 1,
+        "completion_tokens": 570,
+        "evidence_support_rate": 1.0,
+        "human_review_required": true,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 3,
+        "injection_flags": 0,
+        "latency_s": 12.015862199943513,
+        "prompt_tokens": 2585,
+        "report_confidence": "high",
+        "run_id": "run_2a42cba3bd9c",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_0a36db625585"
+      },
+      "agent_checks": [
+        {
+          "detail": "top=planner_logic_error, acceptable=['fusion_error', 'perception_error'], first acceptable at rank 2",
+          "name": "top_hypothesis_class",
+          "passed": false
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "late_braking_seed2026",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.8)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=True)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.0)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.64)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.1844991369168693)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=True, metrics=True",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.800, metrics=0.8",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "fault",
+      "scenario_id": "scenario_b4c1b5e80ec6",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": 2,
+        "attempts": 1,
+        "completion_tokens": 335,
+        "evidence_support_rate": 1.0,
+        "human_review_required": true,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 2,
+        "injection_flags": 0,
+        "latency_s": 5.315336500061676,
+        "prompt_tokens": 2434,
+        "report_confidence": "high",
+        "run_id": "run_979bf17be198",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_5a90ce99005a"
+      },
+      "agent_checks": [
+        {
+          "detail": "top=planner_logic_error, acceptable=['fusion_error', 'perception_error'], first acceptable at rank 2",
+          "name": "top_hypothesis_class",
+          "passed": false
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "late_braking_near_miss",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "absent",
+          "name": "event_absent:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.52)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=False)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.36)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.1707444723941307)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=False, metrics=False",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.520, metrics=0.52",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "fault",
+      "scenario_id": "scenario_346e6f2b188d",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": null,
+        "attempts": 1,
+        "completion_tokens": 430,
+        "evidence_support_rate": 1.0,
+        "human_review_required": false,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 2,
+        "injection_flags": 0,
+        "latency_s": 8.134310099994764,
+        "prompt_tokens": 2441,
+        "report_confidence": "medium",
+        "run_id": "run_de56eb283aae",
+        "top_failure_class": "unknown",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_8e7a8f97ce51"
+      },
+      "agent_checks": [
+        {
+          "detail": "no fault hypothesis at or above medium",
+          "name": "no_false_fault",
+          "passed": true
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "nominal_seed42",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "absent",
+          "name": "event_absent:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.16)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=False)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=1.1854242271528008)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.0)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.866965833301616)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=False, metrics=False",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.160, metrics=0.16",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "nominal",
+      "scenario_id": "scenario_f879135426d9",
+      "status": "pass"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": null,
+        "attempts": 2,
+        "completion_tokens": 769,
+        "evidence_support_rate": 1.0,
+        "human_review_required": false,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 2,
+        "injection_flags": 0,
+        "latency_s": 13.084935099817812,
+        "prompt_tokens": 5346,
+        "report_confidence": "medium",
+        "run_id": "run_62e742931bb0",
+        "top_failure_class": "control_issue",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_ea3192571938"
+      },
+      "agent_checks": [
+        {
+          "detail": "fault hypotheses on a nominal log: ['control_issue@medium', 'perception_error@medium']",
+          "name": "no_false_fault",
+          "passed": false
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "nominal_seed7",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "absent",
+          "name": "event_absent:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.18)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=False)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=1.1806227756829677)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.0)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.8851697110420285)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=False, metrics=False",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.160, metrics=0.18",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "nominal",
+      "scenario_id": "scenario_3fcc2e496280",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": null,
+        "attempts": 1,
+        "completion_tokens": 390,
+        "evidence_support_rate": 1.0,
+        "human_review_required": false,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 3,
+        "injection_flags": 0,
+        "latency_s": 6.725219000130892,
+        "prompt_tokens": 2446,
+        "report_confidence": "high",
+        "run_id": "run_4e484070e0a1",
+        "top_failure_class": "unknown",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_e5a4d0b8b55d"
+      },
+      "agent_checks": [
+        {
+          "detail": "no fault hypothesis at or above medium",
+          "name": "no_false_fault",
+          "passed": true
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "nominal_60kmh",
+      "deterministic_checks": [
+        {
+          "detail": "expected pass, got pass",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "absent",
+          "name": "event_absent:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.14)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=False)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=1.000004866165718)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.0)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.88128700248451)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=False, metrics=False",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.160, metrics=0.14",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "nominal",
+      "scenario_id": "scenario_72a46bfd0423",
+      "status": "pass"
+    },
+    {
+      "agent": null,
+      "agent_checks": [],
+      "agent_ran": false,
+      "case_id": "blocked_missing_ego_speed",
+      "deterministic_checks": [
+        {
+          "detail": "analysis blocked by data-quality gates (quality_0e6f80697c38): required_signals: critical signals missing: ego_speed_mps",
+          "name": "quality_blocked",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "blocked",
+      "scenario_id": "scenario_c0343aa5ddeb",
+      "status": "pass"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": 2,
+        "attempts": 2,
+        "completion_tokens": 1005,
+        "evidence_support_rate": 1.0,
+        "human_review_required": true,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 3,
+        "injection_flags": 0,
+        "latency_s": 15.268092799931765,
+        "prompt_tokens": 5742,
+        "report_confidence": "medium",
+        "run_id": "run_562531d47d56",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_87851a0cedf6"
+      },
+      "agent_checks": [
+        {
+          "detail": "top=planner_logic_error, acceptable=['fusion_error', 'perception_error'], first acceptable at rank 2",
+          "name": "top_hypothesis_class",
+          "passed": false
+        },
+        {
+          "detail": "report medium, cap medium",
+          "name": "confidence_cap",
+          "passed": true
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "degraded_confidence_nan_burst",
+      "deterministic_checks": [
+        {
+          "detail": "expected degraded, got degraded",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.82)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=True)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.0)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.66)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected FAIL, got FAIL (value=0.188274889862589)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=True, metrics=True",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.800, metrics=0.82",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "fault",
+      "scenario_id": "scenario_fb2ba3f15c47",
+      "status": "fail"
+    },
+    {
+      "agent": {
+        "acceptable_class_rank": null,
+        "attempts": 1,
+        "completion_tokens": 423,
+        "evidence_support_rate": 1.0,
+        "human_review_required": false,
+        "hypotheses_stripped": 0,
+        "hypotheses_verified": 2,
+        "injection_flags": 0,
+        "latency_s": 7.090494600124657,
+        "prompt_tokens": 2439,
+        "report_confidence": "medium",
+        "run_id": "run_c3b3a140acb8",
+        "top_failure_class": "planner_logic_error",
+        "unresolved_ids": 0,
+        "unsupported_claim_rate": 0.0,
+        "verification_id": "verification_7cfdafd25cae"
+      },
+      "agent_checks": [
+        {
+          "detail": "fault hypotheses on a nominal log: ['planner_logic_error@medium']",
+          "name": "no_false_fault",
+          "passed": false
+        },
+        {
+          "detail": "report medium, cap medium",
+          "name": "confidence_cap",
+          "passed": true
+        }
+      ],
+      "agent_ran": true,
+      "case_id": "degraded_timestamp_gap_nominal",
+      "deterministic_checks": [
+        {
+          "detail": "expected degraded, got degraded",
+          "name": "quality_verdict",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:ttc_threshold_crossing",
+          "passed": true
+        },
+        {
+          "detail": "present",
+          "name": "event_present:aeb_brake_command",
+          "passed": true
+        },
+        {
+          "detail": "absent",
+          "name": "event_absent:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.18)",
+          "name": "metric:braking_latency_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=False)",
+          "name": "metric:collision",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=1.185520908055286)",
+          "name": "metric:min_ttc_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.0)",
+          "name": "metric:confidence_dropout_during_risk_s",
+          "passed": true
+        },
+        {
+          "detail": "expected PASS, got PASS (value=0.8882748898625891)",
+          "name": "metric:min_confidence_during_risk",
+          "passed": true
+        },
+        {
+          "detail": "generator=False, metrics=False",
+          "name": "ground_truth:collision",
+          "passed": true
+        },
+        {
+          "detail": "generator=0.160, metrics=0.18",
+          "name": "ground_truth:braking_latency_s",
+          "passed": true
+        }
+      ],
+      "error": null,
+      "expected_outcome": "nominal",
+      "scenario_id": "scenario_aa11d0c628e9",
+      "status": "fail"
+    }
+  ],
+  "eval_id": "eval_b952ec9fe004",
+  "gate": {
+    "baseline_eval_id": null,
+    "failures": [],
+    "passed": true,
+    "thresholds": {
+      "max_false_fault_rate": null,
+      "max_unsupported_claim_rate": 0.1,
+      "min_evidence_support_rate": 0.9,
+      "min_top1_accuracy": null
+    }
+  },
+  "generated_at": "2026-11-10T16:31:55.387293Z",
+  "model": "gpt-4o-mini",
+  "provider": "openai",
+  "question_sha256": "5e875b78083c4e8ced5e035f6d47a1b7c3061c94059197e14fc84482326f3d90",
+  "suite_name": "aeb-locked-v1",
+  "suite_sha256": "ec12773795b89326b5e4d50932cac868a1e0be365c5b8264a6224c6bab97335c"
+}
