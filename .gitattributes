@@ -3,3 +3,5 @@
 *.pdf binary
 *.png binary
 *.parquet binary
+# Windows batch files must keep CRLF: cmd.exe mis-parses goto labels in LF-only files
+*.bat text eol=crlf

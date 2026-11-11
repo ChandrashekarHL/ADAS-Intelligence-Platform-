@@ -162,6 +162,17 @@ def _diagnosis_inputs(
         raise HTTPException(
             status_code=422, detail=f"blocked by data-quality gates: {exc}"
         ) from exc
+    except IndexError_ as exc:
+        # Embeddings from different providers are not comparable, so retrieval refuses to
+        # mix them. This is a deployment mismatch, not a bad request: say how to fix it.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"RAG index does not match the configured LLM provider ({exc}). "
+                "Rebuild the index with the provider now in use: "
+                "python -m app.rag.cli build ../data/demo_docs --out <INDEX_DIR>"
+            ),
+        ) from exc
 
 
 def _register_routes(app: FastAPI) -> None:
