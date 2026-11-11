@@ -31,9 +31,9 @@ $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/dem
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.agents.cli ../data/demo/aeb_late_braking_seed42/telemetry.csv --index ../data/index --access internal --dry-run --report-dir ../reports_out/late_braking   # metrics-only report.md + report.json
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.demo --out ../data/demo_run       # end-to-end through the API, in-process
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m uvicorn app.api.main:app --port 8000  # serve; docs at /docs
-.venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index_openai   # real-embedding index (needs OPENAI_API_KEY)
+$env:LLM_PROVIDER="openai"; .venv\Scripts\python.exe -m app.rag.cli build ../data/demo_docs --out ../data/index_openai   # real-embedding index (needs OPENAI_API_KEY; set the provider explicitly so a leftover "fake" cannot embed it)
 $env:LLM_PROVIDER="fake"; .venv\Scripts\python.exe -m app.eval.cli run --no-agent --out ../evals/ci   # locked suite, deterministic checks only (CI gate)
-.venv\Scripts\python.exe -m app.eval.cli run --index ../data/index_openai --access internal --out ../evals/results --baseline ../evals/baseline.json   # live agent eval + regression gate (needs OPENAI_API_KEY, ~30k tokens)
+$env:LLM_PROVIDER="openai"; .venv\Scripts\python.exe -m app.eval.cli run --index ../data/index_openai --access internal --out ../evals/results --baseline ../evals/baseline.json   # live agent eval + regression gate (needs OPENAI_API_KEY, ~30k tokens)
 ```
 
 The end-to-end acceptance test is `tests/test_api_e2e.py`; it must stay green for every

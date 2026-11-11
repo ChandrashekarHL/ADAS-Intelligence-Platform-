@@ -19,16 +19,19 @@ if not exist "backend\.venv\Scripts\python.exe" (
   goto :fail
 )
 
-REM The C: drive on this machine is full, so keep npm's cache and all temp files on D:.
-REM These are set here so both child windows inherit them.
-if not exist "D:\tmp" mkdir "D:\tmp"
-if not exist "D:\npm-cache" mkdir "D:\npm-cache"
-set "TMP=D:\tmp"
-set "TEMP=D:\tmp"
-set "npm_config_cache=D:\npm-cache"
+REM The C: drive on this machine is full, so keep npm's cache and all temp files on D:
+REM when that drive exists; elsewhere the inherited defaults are left alone. Set here so
+REM both child windows inherit them.
+if exist "D:\" (
+  if not exist "D:\tmp" mkdir "D:\tmp"
+  if not exist "D:\npm-cache" mkdir "D:\npm-cache"
+  set "TMP=D:\tmp"
+  set "TEMP=D:\tmp"
+  set "npm_config_cache=D:\npm-cache"
+)
 
 if not exist "frontend\node_modules" (
-  echo  [!] frontend\node_modules missing - installing, this takes a few minutes...
+  echo  [warn] frontend\node_modules missing - installing, this takes a few minutes...
   pushd frontend
   call npm install
   if errorlevel 1 (
@@ -41,25 +44,23 @@ if not exist "frontend\node_modules" (
 )
 
 REM ------------------------------------------------- choose the LLM provider
-REM Only tests whether the key line is non-empty; the key itself is never printed.
-REM When a key is present the provider is left to backend\.env, so editing that
-REM file keeps working. Only the offline fallback is forced from here.
-set "PROV=openai (from backend\.env)"
+REM Presence-only check of OPENAI_API_KEY, parsed with the same python-dotenv rules the
+REM backend uses (leading spaces, "export " prefix, quoted values; a quoted empty string
+REM is empty). The key is never printed. When a key is present the provider is left to
+REM backend\.env and the environment; only the offline fallback is forced from here.
 if not exist "backend\.env" (
-  echo  [!] backend\.env not found - starting offline with the fake provider
+  echo  [warn] backend\.env not found - starting offline with the fake provider
   set "LLM_PROVIDER=fake"
   set "INDEX_DIR=../data/index"
-  set "PROV=fake"
 ) else (
-  findstr /r /c:"^OPENAI_API_KEY=." "backend\.env" >nul 2>&1
+  "backend\.venv\Scripts\python.exe" -c "import sys; from dotenv import dotenv_values; sys.exit(0 if (dotenv_values('backend/.env').get('OPENAI_API_KEY') or '').strip() else 1)" >nul 2>&1
   if errorlevel 1 (
-    echo  [!] OPENAI_API_KEY is empty in backend\.env - starting offline with the fake provider
+    echo  [warn] OPENAI_API_KEY is empty in backend\.env - starting offline with the fake provider
     echo      Everything works except "Ask the agent", which returns 503.
     set "LLM_PROVIDER=fake"
     set "INDEX_DIR=../data/index"
-    set "PROV=fake"
   ) else (
-    echo  [ok] OPENAI_API_KEY found - using the real model
+    echo  [ok] OPENAI_API_KEY found - provider left to backend\.env / environment
   )
 )
 
@@ -82,13 +83,18 @@ set /a tries=0
 curl -s -o nul http://127.0.0.1:8000/api/health && goto :apiup
 set /a tries+=1
 if !tries! geq 40 (
-  echo  [!] The API did not answer after 40s - check the "AIP backend" window.
+  echo  [warn] The API did not answer after 40s - check the "AIP backend" window.
+  set "PROV=unknown (health unavailable)"
   goto :waitui
 )
 timeout /t 1 /nobreak >nul
 goto :waitapi
 :apiup
 echo  [ok] API is up
+REM The API is the only authority on which provider is active (an inherited
+REM LLM_PROVIDER can override backend\.env), so ask it rather than guessing.
+set "PROV=unknown (health unavailable)"
+for /f "usebackq delims=" %%p in (`powershell -NoProfile -Command "try { (Invoke-RestMethod -TimeoutSec 5 http://127.0.0.1:8000/api/health).llm_provider } catch { }"`) do set "PROV=%%p"
 
 :waitui
 echo  Waiting for the dashboard to compile (the first run takes a while)...
@@ -97,7 +103,7 @@ set /a tries=0
 curl -s -o nul http://localhost:3000 && goto :webup
 set /a tries+=1
 if !tries! geq 120 (
-  echo  [!] The dashboard did not answer after 120s - check the "AIP frontend" window.
+  echo  [warn] The dashboard did not answer after 120s - check the "AIP frontend" window.
   goto :done
 )
 timeout /t 1 /nobreak >nul
